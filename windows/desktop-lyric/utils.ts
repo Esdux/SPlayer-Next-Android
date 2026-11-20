@@ -1,0 +1,70 @@
+import type { LyricLine } from "lyric-kit";
+
+import type { DesktopLyricAlign } from "@shared/types/settings";
+
+/** 待渲染行的数据载体 */
+export interface DisplayItem {
+  key: string;
+  index: number;
+  line: LyricLine;
+  align: DesktopLyricAlign;
+  scrollEnabled?: boolean;
+  isPlaceholder?: boolean;
+  isNext?: boolean;
+  /** 决定滚动进度的歌词行，翻译行指向对应的原文行 */
+  timingLine?: LyricLine;
+}
+
+/**
+ * 构造占位歌词行
+ * @param text 占位文本
+ */
+export const makePlaceholderLine = (text: string): LyricLine => ({
+  words: [{ word: text, startTime: 0, endTime: 0 }],
+  translatedLyric: "",
+  romanLyric: "",
+  startTime: 0,
+  endTime: 0,
+  isBG: false,
+  isDuet: false,
+});
+
+/**
+ * 行索引对应的 absolute top
+ * @param index 行索引
+ * @param fontSize 主字号 px
+ */
+export const getLineTop = (index: number, fontSize: number): string => {
+  if (index === 0) return "0px";
+  return `${Math.round(fontSize * 1.6)}px`;
+};
+
+/** 字号下限（与设置 schema 一致） */
+const MIN_FONT_SIZE = 20;
+/** 字号上限（与设置 schema 一致） */
+const MAX_FONT_SIZE = 96;
+/** 对应最小字号的窗口高度 */
+const MIN_WINDOW_HEIGHT = 140;
+/** 对应最大字号的窗口高度 */
+const MAX_WINDOW_HEIGHT = 360;
+
+/**
+ * 字号线性映射到窗口总高度
+ * 与 CSS 解耦：不依赖 line-height / padding 等可变因素，留足视觉余量
+ * @param fontSize 主字号 px
+ */
+export const computeWindowHeight = (fontSize: number): number => {
+  const clamped = Math.min(Math.max(Math.round(fontSize), MIN_FONT_SIZE), MAX_FONT_SIZE);
+  const ratio = (clamped - MIN_FONT_SIZE) / (MAX_FONT_SIZE - MIN_FONT_SIZE);
+  return Math.round(MIN_WINDOW_HEIGHT + ratio * (MAX_WINDOW_HEIGHT - MIN_WINDOW_HEIGHT));
+};
+
+/**
+ * 解析行对齐方式，justify 时按 index 奇偶切左右
+ * @param index 行索引
+ * @param baseAlign 配置的基础对齐
+ */
+export const resolveAlign = (index: number, baseAlign: DesktopLyricAlign): DesktopLyricAlign => {
+  if (baseAlign !== "justify") return baseAlign;
+  return index % 2 === 0 ? "left" : "right";
+};

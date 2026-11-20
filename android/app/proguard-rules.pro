@@ -1,0 +1,2 @@
+-keep class top.imsyy.splayer_next.android.** { *; }
+-keepclassmembers class * { @android.webkit.JavascriptInterface <methods>; }

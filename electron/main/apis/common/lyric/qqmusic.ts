@@ -1,0 +1,123 @@
+/**
+ * QQMusic 歌词匹配
+ *
+ * 两个入口：
+ *  - getByPlatformId(id)    按 QQMusic song id 直取
+ *  - getByQuery(track)      search → pickBestCandidate → 单次请求拿歌词
+ *
+ * 返回只带原生格式文本（qrc / lrc + 翻译 / 罗马音），不做解析，交给渲染端。
+ */
+
+import { callQQMusic } from "@main/apis/qqmusic";
+import { withLyricCache } from "@main/database/lyricCache";
+import { buildFingerprint, getMatchedId, setMatchedId } from "@main/database/lyricMatchCache";
+import { coreLog } from "@main/utils/logger";
+import type { LyricMatchResult } from "@shared/types/lyrics";
+import type { Track } from "@shared/types/player";
+import { prefetchTTML } from "./ttml";
+import { buildLyricSearchKeyword, pickBestCandidate, type LyricCandidate } from "./utils";
+
+/** qrc 优先，其次 lrc */
+const pickFormatted = (
+  qrc?: string,
+  lrc?: string,
+): { content: string; format: "qrc" | "lrc" } | undefined => {
+  const qrcContent = qrc?.trim();
+  if (qrcContent) return { content: qrcContent, format: "qrc" };
+  const lrcContent = lrc?.trim();
+  if (lrcContent) return { content: lrcContent, format: "lrc" };
+  return undefined;
+};
+
+/**
+ * 按 QQMusic 数字 songID 直取歌词
+ * @param id  数字 songID
+ * @param mid 字符串 mid（用于 AMLL TTML DB 等外部映射）
+ * @param prefetch 是否预热 TTML，手动选择的歌词不做 TTML 升级，不需要预热
+ */
+export const getByPlatformId = async (
+  id: string,
+  mid?: string,
+  prefetch = true,
+): Promise<LyricMatchResult | null> => {
+  // 立刻预热 TTML 抓取，与本接口的 lyric 调用并行
+  // AMLL DB 里 QM 条目 mid / 数字 id 都可能是 key，依次试
+  if (prefetch) prefetchTTML("qqmusic", mid ? [mid, id] : [id]);
+
+  return withLyricCache("qqmusic", id, async () => {
+    try {
+      const body = await callQQMusic("lyric", { id });
+      if (body.code !== 200) {
+        coreLog.warn(
+          `[lyric:qqmusic] getByPlatformId(${id}) code=${body.code}: ${body.message ?? "no message"}`,
+        );
+        return null;
+      }
+
+      const main = pickFormatted(body.qrc, body.lrc);
+      if (!main) return null;
+
+      const trans = body.trans?.trim();
+      const roma = body.roma?.trim();
+
+      return {
+        platform: "qqmusic",
+        format: main.format,
+        content: main.content,
+        translation: trans || undefined,
+        translationFormat: trans ? "lrc" : undefined,
+        romaji: roma || undefined,
+        romajiFormat: roma ? main.format : undefined,
+        extra: mid ? { mid } : undefined,
+      };
+    } catch (err) {
+      coreLog.warn(`[lyric:qqmusic] getByPlatformId(${id}) failed:`, err);
+      return null;
+    }
+  });
+};
+
+/**
+ * 搜索歌词候选
+ * @param keyword - 搜索关键词
+ * @returns 归一化后的候选列表
+ */
+export const searchCandidates = async (
+  keyword: string,
+): Promise<LyricCandidate<{ id: string; mid: string }>[]> => {
+  const body = await callQQMusic("search", { keywords: keyword, limit: 25 });
+  if (body.code !== 200) throw new Error(`search code=${body.code}`);
+  return (body.songs ?? []).map((song) => ({
+    name: song.name,
+    artist: song.artist,
+    album: song.album,
+    duration: song.duration,
+    extra: { id: song.id, mid: song.mid },
+  }));
+};
+
+/** 按 Track 元数据模糊搜索：search → 挑最佳 → 单次请求歌词 */
+export const getByQuery = async (track: Track): Promise<LyricMatchResult | null> => {
+  const fingerprint = buildFingerprint(track);
+  const cached = getMatchedId(fingerprint, "qqmusic");
+  if (cached) return getByPlatformId(cached.platformId, cached.extra?.mid);
+
+  const keyword = buildLyricSearchKeyword(track);
+  if (!keyword) return null;
+
+  let candidates: LyricCandidate<{ id: string; mid: string }>[];
+  try {
+    candidates = await searchCandidates(keyword);
+  } catch (err) {
+    coreLog.warn(`[lyric:qqmusic] search("${keyword}") failed:`, err);
+    return null;
+  }
+
+  const best = pickBestCandidate(candidates, track);
+  coreLog.info(
+    `[lyric:qqmusic] fuzzy "${keyword}" → ${candidates.length} hits, best=${best?.name ?? "none"}`,
+  );
+  if (!best) return null;
+  setMatchedId(fingerprint, "qqmusic", best.extra.id, { mid: best.extra.mid });
+  return getByPlatformId(best.extra.id, best.extra.mid);
+};
