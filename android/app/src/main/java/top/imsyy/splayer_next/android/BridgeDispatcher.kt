@@ -1,11 +1,15 @@
 package top.imsyy.splayer_next.android
 
+import android.os.Looper
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import top.imsyy.splayer_next.android.bridge.LibraryProvider
 import top.imsyy.splayer_next.android.playback.PlaybackEngine
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * channel 分发器，未实现的 channel 返回失败占位，保证前端不因缺能力而崩溃
@@ -15,33 +19,63 @@ class BridgeDispatcher(private val activity: MainActivity) {
     private val pool = Executors.newFixedThreadPool(4)
 
     /**
+     * 判断 channel 是否必须在主线程执行
+     * ExoPlayer 与所有窗口操作都校验调用线程，跨线程会直接抛异常
+     * @param channel - IPC channel 名
+     * @returns 需要在主线程执行时为真
+     */
+    private fun needsMainThread(channel: String): Boolean =
+        channel.startsWith("player:") || channel.startsWith("window:") || channel.startsWith("theme:")
+
+    /**
+     * 主线程执行体
+     * @param channel - IPC channel 名
+     * @param args - 参数数组
+     * @returns 结果信封文本
+     */
+    private fun envelopeOf(channel: String, args: JSONArray): String {
+        return runCatching {
+            JSONObject().put("ok", true).put("data", dispatch(channel, args))
+        }.getOrElse {
+            Log.w("SPlayerBridge", "channel failed: " + channel, it)
+            JSONObject().put("ok", false).put("error", it.message ?: "dispatch failed")
+        }.toString()
+    }
+
+    /**
      * 同步分发
      * @param channel - IPC channel 名
      * @param payload - JSON 数组字符串
      * @returns JSON 字符串结果
      */
     fun invokeSync(channel: String, payload: String): String {
-        return runCatching { JSONObject().put("ok", true).put("data", dispatch(channel, parse(payload))).toString() }
-            .getOrElse { JSONObject().put("ok", false).put("error", it.message ?: "dispatch failed").toString() }
+        val args = parse(payload)
+        if (!needsMainThread(channel) || Looper.myLooper() == Looper.getMainLooper()) {
+            return envelopeOf(channel, args)
+        }
+        val holder = AtomicReference<String>()
+        val latch = CountDownLatch(1)
+        activity.runOnUiThread {
+            holder.set(envelopeOf(channel, args))
+            latch.countDown()
+        }
+        latch.await(30, TimeUnit.SECONDS)
+        return holder.get() ?: JSONObject()
+            .put("ok", false)
+            .put("error", "main thread dispatch timeout: " + channel)
+            .toString()
     }
 
     /**
-     * 异步分发，耗时操作在线程池执行
+     * 异步分发，播放与窗口类走主线程，其余走线程池
      * @param callId - 调用标识
      * @param channel - IPC channel 名
      * @param payload - JSON 数组字符串
      */
     fun invokeAsync(callId: String, channel: String, payload: String) {
         val args = parse(payload)
-        pool.execute {
-            val envelope = runCatching {
-                JSONObject().put("ok", true).put("data", dispatch(channel, args))
-            }.getOrElse {
-                Log.w("SPlayerBridge", "channel failed: " + channel, it)
-                JSONObject().put("ok", false).put("error", it.message ?: "dispatch failed")
-            }
-            reply(callId, envelope.toString())
-        }
+        val work = Runnable { reply(callId, envelopeOf(channel, args)) }
+        if (needsMainThread(channel)) activity.runOnUiThread(work) else pool.execute(work)
     }
 
     /**

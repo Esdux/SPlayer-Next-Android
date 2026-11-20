@@ -51,7 +51,21 @@ export const bootstrap = async (): Promise<void> => {
 
 void bootstrap().catch((error) => {
   console.error("[app] 初始化失败", error);
-  window.api.window.startupFailed(
-    error instanceof Error ? error.stack || String(error) : String(error),
-  );
+  const stack = error instanceof Error ? error.stack || String(error) : String(error);
+  window.api?.window?.startupFailed?.(stack);
+  // 兜底：初始化失败时必须收掉启动层，否则界面会永远停在转圈动画上
+  const splash = document.getElementById("app-loading");
+  if (splash) splash.remove();
+  const host = document.getElementById("app");
+  if (host) {
+    host.inert = false;
+    host.removeAttribute("aria-hidden");
+    if (host.childElementCount === 0) {
+      const panel = document.createElement("pre");
+      panel.style.cssText =
+        "margin:0;padding:24px;color:#ffb4b4;font:12px/1.6 ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;background:#141418;min-height:100vh;box-sizing:border-box";
+      panel.textContent = "[启动失败]\n\n" + stack;
+      host.appendChild(panel);
+    }
+  }
 });

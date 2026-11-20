@@ -25,19 +25,26 @@ export const isAndroidHost = (): boolean =>
  * @param value - 任意参数值
  * @returns 可 JSON 序列化的结构
  */
-const encode = (value: unknown): unknown => {
+const encode = (value: unknown, seen = new WeakSet<object>(), depth = 0): unknown => {
   if (value instanceof ArrayBuffer) return { __t: "ab", b64: bytesToBase64(new Uint8Array(value)) };
   if (ArrayBuffer.isView(value)) {
     const view = value as ArrayBufferView;
     return { __t: "ab", b64: bytesToBase64(new Uint8Array(view.buffer, view.byteOffset, view.byteLength)) };
   }
-  if (Array.isArray(value)) return value.map(encode);
-  if (value && typeof value === "object" && value.constructor === Object) {
+  if (typeof value === "function" || typeof value === "symbol") return undefined;
+  if (value === null || typeof value !== "object") return value;
+  // 循环引用与过深结构直接截断，否则递归展开会爆栈
+  if (depth > 32 || seen.has(value as object)) return undefined;
+  seen.add(value as object);
+  if (Array.isArray(value)) return value.map((item) => encode(item, seen, depth + 1));
+  if ((value as object).constructor === Object) {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = encode(v);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const encoded = encode(v, seen, depth + 1);
+      if (encoded !== undefined) out[k] = encoded;
+    }
     return out;
   }
-  if (typeof value === "function" || typeof value === "symbol") return undefined;
   return value;
 };
 
@@ -48,9 +55,11 @@ const encode = (value: unknown): unknown => {
  */
 const bytesToBase64 = (bytes: Uint8Array): string => {
   let out = "";
-  const chunk = 0x8000;
+  // 分块必须足够小：一次性 spread 三万个参数会直接触发 Maximum call stack size exceeded
+  const chunk = 0x1000;
   for (let i = 0; i < bytes.length; i += chunk) {
-    out += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    const slice = bytes.subarray(i, i + chunk);
+    out += String.fromCharCode.apply(null, slice as unknown as number[]);
   }
   return btoa(out);
 };
