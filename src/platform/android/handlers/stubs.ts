@@ -5,10 +5,6 @@ import { registerHandler } from "../electron-shim";
  */
 export const registerStubHandlers = (): void => {
   // 在线平台代理：桌面端在 Node 里跑平台加密协议，安卓侧暂无对等实现
-  registerHandler("apis:call", () => ({ success: false, error: "安卓侧暂不支持在线平台代理" }));
-  registerHandler("apis:setCookie", () => ({ success: false }));
-  registerHandler("apis:clearSession", () => ({ success: false }));
-  registerHandler("apis:openLoginWeb", () => ({ success: false }));
 
   // 歌曲缓存
   registerHandler("cache:song:lookup", () => null);

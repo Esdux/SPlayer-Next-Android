@@ -20,6 +20,16 @@ object NetClient {
         .build()
 
     /**
+     * 不跟随 302 的客户端，扫码登录需要从跳转响应里取 Set-Cookie
+     */
+    private val noRedirectClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .build()
+
+    /**
      * 执行一次 HTTP 请求
      * @param payload - { url, method?, headers?, bodyBase64?, timeoutMs? }
      * @returns { status, headers, bodyBase64, url }
@@ -49,7 +59,9 @@ object NetClient {
             "HEAD" -> builder.head()
             else -> builder.method(method, body?.toRequestBody(null))
         }
-        val response = client.newCall(builder.build()).execute()
+        val followRedirects = payload.optBoolean("followRedirects", true)
+        val active = if (followRedirects) client else noRedirectClient
+        val response = active.newCall(builder.build()).execute()
         val result = JSONObject()
         result.put("status", response.code)
         val headers = JSONObject()

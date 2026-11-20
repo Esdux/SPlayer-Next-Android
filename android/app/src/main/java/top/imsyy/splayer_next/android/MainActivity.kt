@@ -18,6 +18,9 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import top.imsyy.splayer_next.android.bridge.LibraryProvider
 
@@ -120,10 +123,40 @@ class MainActivity : ComponentActivity() {
 
         container.addView(webView)
         setContentView(container)
+        applySystemBars(container)
         EventBus.bind(webView)
         requestAudioPermission()
         intake(intent)
         webView.loadUrl("https://appassets.androidplatform.net/assets/web/index.html")
+    }
+
+    /**
+     * 适配状态栏与导航栏：内容整体让出系统栏高度，避免顶栏被状态栏压住
+     *
+     * Android 15 起强制 edge-to-edge，window.statusBarColor 不再生效，
+     * 所以改为读取系统栏 inset 后给 WebView 加内边距，并把高度透传给前端。
+     * @param container - 根容器
+     */
+    private fun applySystemBars(container: FrameLayout) {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        ViewCompat.setOnApplyWindowInsetsListener(container) { _, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+            webView.setPadding(0, bars.top, 0, bars.bottom)
+            val density = resources.displayMetrics.density
+            val topDp = bars.top / density
+            val bottomDp = bars.bottom / density
+            webView.post {
+                webView.evaluateJavascript(
+                    "document.documentElement.style.setProperty('--android-safe-top','" + topDp +
+                        "px');document.documentElement.style.setProperty('--android-safe-bottom','" + bottomDp + "px');",
+                    null,
+                )
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(container)
     }
 
     /**
