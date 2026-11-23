@@ -63,7 +63,7 @@ const sourceOptions = computed<SSelectOption[]>(() => [
 
 const createDialogOpen = ref(false);
 /** 听歌识曲弹窗 */
-const recognitionOpen = ref(false);
+
 const createMode = ref<ContentScope>("local");
 
 const handleCreate = (): void => {
@@ -402,18 +402,6 @@ onMounted(() => {
         "
         @contextmenu.capture="onMenuContextMenu"
       >
-        <!-- 听歌识曲：与导航项同容器同间距 -->
-        <SButton
-          class="w-full mb-1 !bg-transparent !border-transparent !justify-start !pl-[19px] !pr-0"
-          variant="tertiary"
-          :circle="!expanded"
-          :size="44"
-          :icon-size="22"
-          @click="recognitionOpen = true"
-        >
-          <template #icon><IconLucideAudioWaveform /></template>
-          <span v-if="expanded" class="ml-2 text-sm">{{ t("recognition.entry") }}</span>
-        </SButton>
         <SMenu
           :items="menuItems"
           :model-value="activeKey"
@@ -436,8 +424,6 @@ onMounted(() => {
       </SButton>
     </div>
     <!-- 新建歌单 -->
-    <!-- 听歌识曲弹窗 -->
-    <RecognitionDialog v-model:open="recognitionOpen" />
     <PlaylistCreateDialog
       v-model:open="createDialogOpen"
       :mode="createMode"

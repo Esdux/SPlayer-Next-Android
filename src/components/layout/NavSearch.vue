@@ -27,7 +27,12 @@ const isPhonePortrait = isPhone;
 
 const SEARCH_EXPANDED_WIDTH = "23rem";
 const SEARCH_EXPANDED_RIGHT = "-1.5rem";
-const MOBILE_SEARCH_EXPANDED_WIDTH = "calc(var(--page-zoom-100vw, 100vw) - 24px)";
+/** 触发器相对视口的左偏移，展开时测量 */
+const searchWrapperLeft = ref(0);
+/** 手机展开宽度：视口宽 - 左偏移 - 12px 余量，保证不越过屏幕右缘 */
+const mobileSearchExpandedWidth = computed(
+  () => `calc(100vw - ${Math.max(0, searchWrapperLeft.value) + 12}px)`,
+);
 const SEARCH_PANEL_COLLAPSE_MS = 250;
 const SEARCH_INPUT_TRANSITION_MS = 250;
 
@@ -48,7 +53,7 @@ const searchPanelVisible = computed(() => panelOpen.value || panelCollapsing.val
 const searchBoxStyle = computed(() => ({
   width: inputExpanded.value
     ? useMobileLayout.value
-      ? MOBILE_SEARCH_EXPANDED_WIDTH
+      ? mobileSearchExpandedWidth.value
       : SEARCH_EXPANDED_WIDTH
     : "100%",
   right: useMobileLayout.value ? "auto" : inputExpanded.value ? SEARCH_EXPANDED_RIGHT : "0",
@@ -56,7 +61,7 @@ const searchBoxStyle = computed(() => ({
   height: useMobileLayout.value ? "2.75rem" : undefined,
 }));
 const searchPanelStyle = computed(() => ({
-  width: useMobileLayout.value ? MOBILE_SEARCH_EXPANDED_WIDTH : SEARCH_EXPANDED_WIDTH,
+  width: useMobileLayout.value ? mobileSearchExpandedWidth.value : SEARCH_EXPANDED_WIDTH,
   right: useMobileLayout.value ? "auto" : SEARCH_EXPANDED_RIGHT,
   left: useMobileLayout.value ? "0" : "auto",
   height: useMobileLayout.value ? "65vh" : undefined,
@@ -71,6 +76,9 @@ const clearCloseTimers = (): void => {
 
 const openSearch = (): void => {
   clearCloseTimers();
+  // 展开前测量触发器位置，宽度按左偏移收敛，避免超出屏幕
+  searchWrapperLeft.value =
+    document.querySelector<HTMLElement>(".nav-search-root")?.getBoundingClientRect().left ?? 0;
   panelCollapsing.value = false;
   searchClosing.value = false;
   inputExpanded.value = true;
@@ -371,7 +379,7 @@ onUnmounted(() => {
   <!-- 顶栏展开态搜索框 + 嵌入式结果面板 -->
   <div
     ref="wrapperRef"
-    class="app-no-drag relative shrink-0"
+    class="nav-search-root app-no-drag relative shrink-0"
     :class="searchLayerActive ? 'z-[999]' : ''"
   >
     <!-- 触发器 / 展开态输入框 -->
