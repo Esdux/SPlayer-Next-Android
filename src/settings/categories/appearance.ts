@@ -1,4 +1,5 @@
 import type { SettingCategory } from "@/types/settings-schema";
+import { isAndroidRuntime } from "@/utils/platform";
 import { useSettingsStore } from "@/stores/settings";
 import { useThemeStore } from "@/stores/theme";
 import FontConfig from "@/components/settings/custom/FontConfig.vue";
@@ -82,7 +83,7 @@ const appearanceCategory: SettingCategory = {
             },
             {
               key: "backgroundBlur",
-              type: "slider",
+              type: "number",
               binding: { store: "theme", path: "imageBackground.blur" },
               min: 0,
               max: 80,
@@ -92,7 +93,7 @@ const appearanceCategory: SettingCategory = {
             },
             {
               key: "backgroundDim",
-              type: "slider",
+              type: "number",
               binding: { store: "theme", path: "imageBackground.dim" },
               min: 0.3,
               max: 0.9,
@@ -102,7 +103,7 @@ const appearanceCategory: SettingCategory = {
             },
             {
               key: "backgroundScale",
-              type: "slider",
+              type: "number",
               binding: { store: "theme", path: "imageBackground.scale" },
               min: 1,
               max: 2,
@@ -278,7 +279,7 @@ const appearanceCategory: SettingCategory = {
           children: [
             {
               key: "coverLyricRatio",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "player.coverLyricRatio" },
               min: 0.3,
               max: 0.6,
@@ -368,7 +369,7 @@ const appearanceCategory: SettingCategory = {
             },
             {
               key: "playerBgFlowSpeed",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "player.playerBgFlowSpeed" },
               min: 0.1,
               max: 10,
@@ -378,7 +379,7 @@ const appearanceCategory: SettingCategory = {
             },
             {
               key: "playerBgRenderScale",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "player.playerBgRenderScale" },
               min: 0.5,
               max: 2,
@@ -388,7 +389,7 @@ const appearanceCategory: SettingCategory = {
             },
             {
               key: "playerBgFps",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "player.playerBgFps" },
               min: 24,
               max: 120,
@@ -415,5 +416,15 @@ const appearanceCategory: SettingCategory = {
     },
   ],
 };
+
+// 安卓竖屏固定灵动悬浮与折叠侧栏，设置里不再暴露这两项
+if (isAndroidRuntime()) {
+  const layoutSection = appearanceCategory.sections.find((section) => section.id === "layout");
+  if (layoutSection) {
+    layoutSection.items = layoutSection.items.filter(
+      (item) => item.key !== "layoutMode" && item.key !== "sidebarCollapsed",
+    );
+  }
+}
 
 export default appearanceCategory;

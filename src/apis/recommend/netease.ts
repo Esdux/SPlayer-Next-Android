@@ -129,7 +129,11 @@ export const fetchRadarPlaylists = async (): Promise<CoverItem[]> => {
  * @returns 歌手封面卡片列表
  */
 export const fetchArtists = async (): Promise<CoverItem[]> => {
-  const body = await neteaseApi.top_artists<{ artists?: unknown[] }>({ limit: HOME_GRID_LIMIT });
+  // 该接口 limit 与 offset 都必须传，缺一个会返回 400
+  const body = await neteaseApi.top_artists<{ artists?: unknown[] }>({
+    limit: HOME_GRID_LIMIT,
+    offset: 0,
+  });
   return (body?.artists ?? []).map((raw) => artistToCoverItem(toArtist(raw)));
 };
 

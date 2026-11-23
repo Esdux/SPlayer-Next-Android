@@ -21,7 +21,9 @@ object LibraryProvider {
      * @returns 扫描到的曲目数量
      */
     fun scan(context: Context): Int {
-        tracks.clear()
+        android.util.Log.i("SPlayerLib", "scan start")
+        // 扫描写入局部列表，结束后原子替换，读线程不会看到半截数据
+        val local = mutableListOf<JSONObject>()
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
@@ -58,7 +60,7 @@ object LibraryProvider {
                 val artist = cursor.getString(artistCol) ?: "未知歌手"
                 val album = cursor.getString(albumCol) ?: "未知专辑"
                 val albumId = cursor.getLong(albumIdCol)
-                tracks.add(
+                local.add(
                     JSONObject()
                         .put("id", "ms:" + id)
                         .put("source", "local")
@@ -84,7 +86,24 @@ object LibraryProvider {
             }
         }
         lastScanAt = System.currentTimeMillis()
-        return tracks.size
+        synchronized(this) {
+            tracks.clear()
+            tracks.addAll(local)
+        }
+        android.util.Log.i("SPlayerLib", "scan done: " + local.size)
+        // 扫描完成后异步重建 163key 对照表，避免拖慢首屏
+        val entries = local.map {
+            Local163Key.Fingerprint(
+                uri = android.net.Uri.parse(it.optString("path")),
+                title = it.optString("title"),
+                artist = it.optJSONArray("artists")?.optJSONObject(0)?.optString("name").orEmpty(),
+                durationMs = it.optLong("duration"),
+            )
+        }
+        Thread {
+            runCatching { Local163Key.rebuild(context.applicationContext, entries) }
+        }.start()
+        return local.size
     }
 
     /**
@@ -99,7 +118,28 @@ object LibraryProvider {
      * 全部曲目
      * @returns JSON 数组
      */
-    fun all(): JSONArray = JSONArray(tracks)
+    /**
+     * 读取专辑封面原始字节
+     * @param context - 应用上下文
+     * @param albumId - MediaStore 专辑 id
+     * @returns 封面字节，取不到时为 null
+     */
+    fun albumArt(context: Context, albumId: String): ByteArray? {
+        return runCatching {
+            val uri = android.net.Uri.parse("content://media/external/audio/albumart/" + albumId)
+            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.getOrNull()
+    }
+
+    /**
+     * 扫描结果是否仍然新鲜
+     * @param maxAgeMs - 允许的最大年龄
+     * @returns 新鲜为 true，可用于跳过重复扫描
+     */
+    fun isFresh(maxAgeMs: Long = 60_000L): Boolean =
+        lastScanAt > 0 && System.currentTimeMillis() - lastScanAt < maxAgeMs
+
+    fun all(): JSONArray = synchronized(this) { JSONArray(tracks.toList()) }
 
     /**
      * 按专辑聚合
@@ -107,7 +147,9 @@ object LibraryProvider {
      */
     fun albums(): JSONArray {
         val map = LinkedHashMap<String, JSONObject>()
-        for (track in tracks) {
+        // 扫描线程会整体替换列表，先取快照避免并发修改
+        val snapshot = synchronized(this) { tracks.toList() }
+        for (track in snapshot) {
             val album = track.optJSONObject("album") ?: continue
             val name = album.optString("name")
             if (name.isEmpty()) continue
@@ -128,7 +170,9 @@ object LibraryProvider {
      */
     fun artists(): JSONArray {
         val map = LinkedHashMap<String, JSONObject>()
-        for (track in tracks) {
+        // 扫描线程会 clear+add，先取快照避免 ConcurrentModificationException
+        val snapshot = synchronized(this) { tracks.toList() }
+        for (track in snapshot) {
             val list = track.optJSONArray("artists") ?: continue
             for (i in 0 until list.length()) {
                 val name = list.optJSONObject(i)?.optString("name") ?: continue
@@ -200,7 +244,9 @@ object LibraryProvider {
         val keyword = query.trim().lowercase()
         val result = JSONArray()
         if (keyword.isEmpty()) return result
-        for (track in tracks) {
+        // 扫描线程会整体替换列表，先取快照
+        val snapshot = synchronized(this) { tracks.toList() }
+        for (track in snapshot) {
             val haystack = buildString {
                 append(track.optString("title").lowercase())
                 append(" ")
@@ -225,7 +271,7 @@ object LibraryProvider {
      * 曲目总数
      * @returns 数量
      */
-    fun count(): Int = tracks.size
+    fun count(): Int = synchronized(this) { tracks.size }
 
     /**
      * 随机取一首

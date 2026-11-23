@@ -28,6 +28,7 @@ export const searchSongs = (
   offset: number,
   limit: number,
 ): Promise<SearchResult<Track>> => {
+  console.warn("[srch] songs platform=" + platform + " kw=" + keyword);
   if (platform === "netease") return netease.songs(keyword, offset, limit);
   if (platform === "qqmusic") return qqmusic.songs(keyword, offset, limit);
   if (platform === "kugou") return kugou.songs(keyword, offset, limit);

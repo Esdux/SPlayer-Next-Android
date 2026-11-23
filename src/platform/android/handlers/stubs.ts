@@ -79,11 +79,6 @@ export const registerStubHandlers = (): void => {
 
   // 歌词仓库与手动匹配：安卓侧从曲目内嵌与同名文件读取
   registerHandler("lyrics:searchCandidates", () => []);
-  registerHandler("lyrics:searchTTML", () => []);
-  registerHandler("lyrics:fetchTTMLById", () => null);
-  registerHandler("lyrics:fetchTTMLOverlay", () => null);
-  registerHandler("lyrics:matchById", () => ({ success: false }));
-  registerHandler("lyrics:matchByQuery", () => ({ success: false }));
   registerHandler("lyrics:matchLocalTTML", () => null);
   registerHandler("lyrics:getManualMatch", () => null);
   registerHandler("lyrics:setManualMatch", () => ({ success: false }));
@@ -93,7 +88,7 @@ export const registerStubHandlers = (): void => {
   registerHandler("lyrics:pickLyricRepoDir", () => null);
 
   // 音频识别依赖 PCM 采集管线
-  registerHandler("recognition:submitPcm", () => ({ success: false }));
+
 
   // 播放器细项
   registerHandler("player:getFadeDuration", () => 0);

@@ -19,6 +19,9 @@ const isSearchActive = ref(false);
 
 const activeCategory = computed(() => settingsSchema.find((c) => c.id === activeId.value));
 
+/** 手机竖屏：左侧分类栏折叠成图标条，把宽度让给设置内容 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+
 /** 计算每个 section 的全局起始索引 */
 const sectionStartIndices = computed(() => {
   const indices: number[] = [];
@@ -72,33 +75,40 @@ onMounted(() => {
 <template>
   <div class="flex h-full overflow-hidden">
     <!-- 左侧 -->
-    <div class="w-70 shrink-0 flex flex-col bg-surface-panel p-5">
-      <h2 class="text-2xl font-bold mb-1 px-1">{{ t("settings.title") }}</h2>
-      <p class="text-sm text-on-surface-variant/80 mb-5 px-1">{{ t("settings.subtitle") }}</p>
+    <div
+      class="shrink-0 flex flex-col bg-surface-panel"
+      :class="isPhoneViewport ? 'w-14 py-2 px-1' : 'w-70 p-5'"
+    >
+      <template v-if="!isPhoneViewport">
+        <h2 class="text-2xl font-bold mb-1 px-1">{{ t("settings.title") }}</h2>
+        <p class="text-sm text-on-surface-variant/80 mb-5 px-1">{{ t("settings.subtitle") }}</p>
 
-      <!-- 搜索 -->
-      <SettingsSearch
-        class="mb-4"
-        @select="onSearchSelect"
-        @active-change="isSearchActive = $event"
-      />
+        <!-- 搜索 -->
+        <SettingsSearch
+          class="mb-4"
+          @select="onSearchSelect"
+          @active-change="isSearchActive = $event"
+        />
+      </template>
 
       <!-- 菜单 -->
       <Transition name="fade">
         <div
           v-show="!isSearchActive"
-          class="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] -mr-5 pr-5"
+          class="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]"
+          :class="isPhoneViewport ? undefined : '-mr-5 pr-5'"
         >
           <SettingsMenu
             :categories="settingsSchema"
             :active-id="activeId"
+            :collapsed="isPhoneViewport"
             @select="onCategorySelect"
           />
         </div>
       </Transition>
 
       <!-- 底部 -->
-      <div class="shrink-0 mt-auto pt-4 px-1 flex items-center gap-1">
+      <div v-if="!isPhoneViewport" class="shrink-0 mt-auto pt-4 px-1 flex items-center gap-1">
         <SButton variant="text" size="tiny" @click="openExternal(REPO_URL)">
           <template #icon><IconLucideGithub /></template>
           {{ REPO_NAME }}

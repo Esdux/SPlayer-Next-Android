@@ -30,7 +30,7 @@ const lyricVisible = computed(() => hasLyric.value && !status.fullQueueOpen);
     :class="immersive ? 'opacity-0' : 'opacity-100'"
   />
   <PlayerTopBar />
-  <div class="absolute top-14 inset-x-0 bottom-20">
+  <div class="absolute top-14 inset-x-0 bottom-[calc(5rem+var(--android-safe-bottom,0px))]">
     <!-- 右侧信息与歌词 -->
     <div
       class="group absolute inset-y-0 right-0 w-1/2 pr-20 flex flex-col transition-opacity duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"

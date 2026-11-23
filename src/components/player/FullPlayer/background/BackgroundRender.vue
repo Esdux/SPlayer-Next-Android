@@ -180,6 +180,24 @@ const getRendererClass = () => {
   return RENDERER_MAP[props.renderEngine ?? "mesh"] ?? MeshGradientRenderer;
 };
 
+/** WebGL 上下文丢失后的重建计时器 */
+let contextLostTimer: number | undefined;
+
+/**
+ * 上下文丢失时兜底重建，避免背景整块变黑
+ * @param event - WebGL 上下文事件
+ */
+const onContextLost = (event: Event): void => {
+  event.preventDefault();
+  console.warn("[background] WebGL 上下文丢失，1.2s 后重建渲染器");
+  if (contextLostTimer !== undefined) window.clearTimeout(contextLostTimer);
+  contextLostTimer = window.setTimeout(() => {
+    contextLostTimer = undefined;
+    destroyRenderer();
+    initRenderer();
+  }, 1200);
+};
+
 /**
  * 初始化底层渲染器并挂载至 DOM
  */
@@ -187,13 +205,35 @@ const initRenderer = () => {
   if (!wrapperRef.value) return;
 
   const RendererClass = getRendererClass();
-  bgRenderRef.value = CoreBackgroundRender.new(RendererClass);
+  // WebGL 不可用或精度不足时直接放弃，保持流体层透明、露出底层背景
+  const capability = RendererClass as unknown as { isSupported?: () => boolean };
+  if (typeof capability.isSupported === "function" && !capability.isSupported()) {
+    console.warn("[background] 当前环境不支持该渲染器，回落到静态背景");
+    return;
+  }
+
+  try {
+    bgRenderRef.value = CoreBackgroundRender.new(RendererClass);
+  } catch (error) {
+    console.warn("[background] 渲染器初始化失败，回落到静态背景", error);
+    return;
+  }
 
   const el = bgRenderRef.value.getElement();
   el.style.width = "100%";
   el.style.height = "100%";
   el.style.display = "block";
+  el.addEventListener("webglcontextlost", onContextLost, false);
   wrapperRef.value.appendChild(el);
+
+  // 重建后需要重新注入封面，否则网格取色没有素材
+  if (props.album) {
+    void toSameOriginUrl(props.album).then((sameOrigin) =>
+      bgRenderRef.value?.setAlbum(sameOrigin, false).catch((error: unknown) => {
+        console.warn("[background] 重建后封面加载失败", error);
+      }),
+    );
+  }
 
   updateRendererState();
   syncFftCapture();
@@ -204,11 +244,16 @@ const initRenderer = () => {
  */
 const destroyRenderer = () => {
   stopFftCapture();
+  if (contextLostTimer !== undefined) {
+    window.clearTimeout(contextLostTimer);
+    contextLostTimer = undefined;
+  }
 
   const renderer = bgRenderRef.value;
   if (renderer) {
     renderer.pause();
     const el = renderer.getElement();
+    el?.removeEventListener("webglcontextlost", onContextLost, false);
     el?.remove();
     renderer.dispose();
     bgRenderRef.value = undefined;
@@ -233,12 +278,30 @@ watch(
 );
 
 // 属性变化监听
+/**
+ * 远程封面先经原生取字节转成同源 blob，否则渲染器 fetch 会被 CORS 拦下、
+ * 网格取色没有素材，背景就只剩纯色
+ * @param url - 封面地址
+ * @returns 可被渲染器读取的地址
+ */
+const toSameOriginUrl = async (url: string): Promise<string> => {
+  if (!/^https?:/i.test(url)) return url;
+  try {
+    const result = await window.api.system.fetchRemoteBytes(url);
+    if (!result.success || !result.data) return url;
+    return URL.createObjectURL(new Blob([new Uint8Array(result.data)]));
+  } catch {
+    return url;
+  }
+};
+
 watch(
   () => props.album,
-  (val) => {
+  async (val) => {
     const renderer = bgRenderRef.value;
     if (val && renderer) {
-      renderer.setAlbum(val, false).then(
+      const sameOrigin = await toSameOriginUrl(val);
+      renderer.setAlbum(sameOrigin, false).then(
         () => {
           if (bgRenderRef.value === renderer) syncRendererMotion();
         },

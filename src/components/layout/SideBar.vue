@@ -17,6 +17,8 @@ import * as player from "@/core/player";
 import IconLucideListMusic from "~icons/lucide/list-music";
 import IconLucidePlus from "~icons/lucide/plus";
 import IconLucideChevronDown from "~icons/lucide/chevron-down";
+import IconLucidePanelLeftClose from "~icons/lucide/panel-left-close";
+import IconLucidePanelLeftOpen from "~icons/lucide/panel-left-open";
 import IconLucideEyeOff from "~icons/lucide/eye-off";
 import IconLucideSettings2 from "~icons/lucide/settings-2";
 import IconSpHeartMode from "~icons/sp/heart-mode";
@@ -33,6 +35,19 @@ const userStore = useUserStore();
 const downloadStore = useDownloadStore();
 const { enterHeartMode } = useHeartMode();
 const { sidebarCollapsed } = useResponsiveLayout();
+
+/**
+ * forceExpanded：抽屉内的展开状态由外层控制
+ * toggleable：抽屉内显示折叠/展开切换按钮（折叠样式里提供展开入口）
+ */
+const props = withDefaults(defineProps<{ forceExpanded?: boolean; toggleable?: boolean }>(), {
+  forceExpanded: false,
+  toggleable: false,
+});
+const emit = defineEmits<{ toggleExpanded: [] }>();
+
+/** 是否展示完整侧栏（跟随「折叠侧边栏」设置；抽屉内由 forceExpanded 决定） */
+const expanded = computed(() => props.forceExpanded || !sidebarCollapsed.value);
 const settingsDialog = useSettingsDialog();
 
 /** 心动模式 */
@@ -47,6 +62,8 @@ const sourceOptions = computed<SSelectOption[]>(() => [
 ]);
 
 const createDialogOpen = ref(false);
+/** 听歌识曲弹窗 */
+const recognitionOpen = ref(false);
 const createMode = ref<ContentScope>("local");
 
 const handleCreate = (): void => {
@@ -59,6 +76,9 @@ const handleCreated = (playlistId: string, scope: ContentScope): void => {
   status.myPlaylistSource = scope;
   router.push(`/collection/${scope === "local" ? "local" : "netease"}/playlist/${playlistId}`);
 };
+
+/** 「我的歌单」分组是否展开 */
+const myPlaylistsExpanded = ref(true);
 
 /** 我的歌单分组头部 */
 const renderMyHeader = () =>
@@ -87,11 +107,30 @@ const renderMyHeader = () =>
           ),
       },
     ),
-    h(
-      SButton,
-      { variant: "tertiary", size: 26, round: true, onClick: handleCreate },
-      { icon: () => h(IconLucidePlus, { class: "size-3.5" }) },
-    ),
+    h("div", { class: "flex items-center gap-1" }, [
+      h(
+        SButton,
+        {
+          variant: "tertiary",
+          size: 26,
+          round: true,
+          onClick: () => (myPlaylistsExpanded.value = !myPlaylistsExpanded.value),
+        },
+        {
+          icon: () =>
+            h(IconLucideChevronDown, {
+              class:
+                "size-3.5 transition-transform duration-200 " +
+                (myPlaylistsExpanded.value ? "" : "-rotate-90"),
+            }),
+        },
+      ),
+      h(
+        SButton,
+        { variant: "tertiary", size: 26, round: true, onClick: handleCreate },
+        { icon: () => h(IconLucidePlus, { class: "size-3.5" }) },
+      ),
+    ]),
   ]);
 
 /** 「收藏的歌单」分组头部 */
@@ -226,7 +265,8 @@ const menuItems = computed<SMenuItem[]>(() => {
     items.push({ key: "divider-playlist", type: "divider" });
   if (showMy) {
     items.push({ key: "my-playlist-group", type: "group", render: renderMyHeader });
-    items.push(...myPlaylistItems.value);
+    // 折叠时只留分组头，子项一起收起
+    if (myPlaylistsExpanded.value) items.push(...myPlaylistItems.value);
   }
   if (showSubscribed) {
     if (showMy) items.push({ key: "divider-subscribed", type: "divider" });
@@ -345,25 +385,59 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <SideBarLogo :collapsed="sidebarCollapsed" />
+  <div
+  class="relative flex flex-col"
+  :class="expanded || props.toggleable ? 'h-full' : 'self-start w-full'"
+>
+    <SideBarLogo :collapsed="!expanded" />
     <SContextMenu :items="contextMenuItems" @select="onContextMenuSelect">
       <div
-        class="flex-1 min-h-0 pb-3 overflow-y-auto transition-[padding] duration-300"
+        class="min-h-0 overflow-y-auto transition-[padding] duration-300"
         :class="
-          sidebarCollapsed ? 'px-2 [&::-webkit-scrollbar]:hidden' : 'px-3 [scrollbar-gutter:stable]'
+          expanded
+            ? 'flex-1 pb-3 px-3 [&::-webkit-scrollbar]:hidden'
+            : props.toggleable
+              ? 'flex-1 min-h-0 pb-12 px-2 [&::-webkit-scrollbar]:hidden'
+              : 'flex-none pb-0 px-2 [&::-webkit-scrollbar]:hidden'
         "
         @contextmenu.capture="onMenuContextMenu"
       >
+        <!-- 听歌识曲：与导航项同容器同间距 -->
+        <SButton
+          class="w-full mb-1 !bg-transparent !border-transparent !justify-start !pl-[19px] !pr-0"
+          variant="tertiary"
+          :circle="!expanded"
+          :size="44"
+          :icon-size="22"
+          @click="recognitionOpen = true"
+        >
+          <template #icon><IconLucideAudioWaveform /></template>
+          <span v-if="expanded" class="ml-2 text-sm">{{ t("recognition.entry") }}</span>
+        </SButton>
         <SMenu
           :items="menuItems"
           :model-value="activeKey"
-          :collapsed="sidebarCollapsed"
+          :collapsed="!expanded"
           @select="onSelect"
         />
       </div>
     </SContextMenu>
+    <!-- 折叠样式里的展开入口：固定在抽屉底部，宽度随展开态变化 -->
+    <div
+      v-if="props.toggleable"
+      class="fixed bottom-[calc(var(--android-safe-bottom,0px)+16px)] left-2 z-[60] flex justify-center"
+      :class="expanded ? 'w-[244px]' : 'w-[76px]'"
+    >
+      <SButton variant="tertiary" round :size="30" :icon-size="18" @click="emit('toggleExpanded')">
+        <template #icon>
+          <IconLucidePanelLeftOpen v-if="!expanded" />
+          <IconLucidePanelLeftClose v-else />
+        </template>
+      </SButton>
+    </div>
     <!-- 新建歌单 -->
+    <!-- 听歌识曲弹窗 -->
+    <RecognitionDialog v-model:open="recognitionOpen" />
     <PlaylistCreateDialog
       v-model:open="createDialogOpen"
       :mode="createMode"

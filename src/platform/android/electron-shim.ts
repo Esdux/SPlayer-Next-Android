@@ -1,7 +1,32 @@
 import type { IpcRendererEvent } from "electron";
 
 /** 原生调用超时，避免前端永久挂起 */
-const NATIVE_TIMEOUT_MS = 30000;
+const NATIVE_TIMEOUT_MS = 30_000;
+
+/** 需要用户手动操作的原生调用（如目录选择）超时更宽松 */
+const INTERACTIVE_TIMEOUT_MS = 180_000;
+
+/** 需要等用户操作完成的 channel */
+const INTERACTIVE_CHANNELS = new Set([
+  "library:addScanDir",
+  "library:pickCoverImage",
+  "cloud:pickSongs",
+  "download:pickDir",
+  "cache:pickDir",
+  "lyrics:pickLyricRepoDir",
+  "theme:pickBackgroundImage",
+  "system:saveFile",
+  "config:exportToFile",
+  "config:importFromFile",
+]);
+
+/**
+ * 判断 channel 是否按交互超时等待
+ * @param channel - IPC channel 名
+ * @returns 需要更宽超时为真
+ */
+const isInteractiveChannel = (channel: string): boolean =>
+  INTERACTIVE_CHANNELS.has(channel) || channel.startsWith("picker:");
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -88,7 +113,7 @@ const callNative = (channel: string, args: unknown[]): Promise<unknown> => {
     const timer = window.setTimeout(() => {
       pending.delete(callId);
       reject(new Error(`native channel timeout: ${channel}`));
-    }, NATIVE_TIMEOUT_MS);
+    }, isInteractiveChannel(channel) ? INTERACTIVE_TIMEOUT_MS : NATIVE_TIMEOUT_MS);
     pending.set(callId, { resolve, reject, timer });
     try {
       host.invokeAsync(callId, channel, JSON.stringify(encode(args)));
@@ -101,9 +126,27 @@ const callNative = (channel: string, args: unknown[]): Promise<unknown> => {
 };
 
 /**
+ * 直接调用原生，跳过本地 handler 表
+ *
+ * 转发型的 handler（如 window:minimize -> 原生 window:minimize）必须走这里，
+ * 否则 ipcRenderer.invoke 会再次命中同名 handler，形成无限递归。
+ * @param channel - IPC channel 名
+ * @param args - 位置参数
+ * @returns 原生返回的业务数据
+ */
+export const invokeNative = (channel: string, ...args: unknown[]): Promise<unknown> =>
+  callNative(channel, args);
+
+/**
  * 原生异步结果回投入口，供 Kotlin 侧 evaluateJavascript 调用
  * @param callId - 调用标识
  * @param raw - 结果 JSON
+ */
+/** 是否已经绑定过 postWebMessage 的 message 监听 */
+let messageBound = false;
+
+/**
+ * 安装原生回调通道：同步 reply 与高频事件
  */
 export const installReplyChannel = (): void => {
   (window as unknown as Record<string, unknown>).__androidReply = (callId: string, raw: string): void => {
@@ -117,7 +160,12 @@ export const installReplyChannel = (): void => {
       entry.reject(error instanceof Error ? error : new Error(String(error)));
     }
   };
-  (window as unknown as Record<string, unknown>).__androidEvent = (channel: string, raw: string): void => {
+  /**
+   * 把一条原生事件分发给订阅者
+   * @param channel - 事件 channel
+   * @param raw - 事件数据 JSON 文本
+   */
+  const dispatchNativeEvent = (channel: string, raw: string): void => {
     let data: unknown = null;
     try {
       data = JSON.parse(raw);
@@ -128,6 +176,24 @@ export const installReplyChannel = (): void => {
     if (!set) return;
     for (const handler of [...set]) handler({} as IpcRendererEvent, data);
   };
+
+  (window as unknown as Record<string, unknown>).__androidEvent = dispatchNativeEvent;
+
+  // 原生高频推送走 postWebMessage，避免 evaluateJavascript 的脚本拼接与转义
+  if (!messageBound) {
+    messageBound = true;
+    window.addEventListener("message", (event) => {
+      if (event.origin !== "https://appassets.androidplatform.net") return;
+      if (typeof event.data !== "string") return;
+      try {
+        const parsed = JSON.parse(event.data) as { channel?: string; data?: unknown };
+        if (!parsed.channel) return;
+        dispatchNativeEvent(String(parsed.channel), String(parsed.data ?? ""));
+      } catch {
+        // 非 JSON 消息直接忽略
+      }
+    });
+  }
 };
 
 /**
@@ -150,6 +216,17 @@ export const registerHandler = (channel: string, handler: (...args: unknown[]) =
  * @param handler - 回调
  * @returns 解绑函数
  */
+/**
+ * 订阅原生推送事件（不经过 ipcRenderer 封装）
+ * @param channel - 事件通道
+ * @param handler - 回调
+ * @returns 解绑函数
+ */
+export const onNativeEvent = (
+  channel: string,
+  handler: (data: unknown) => void,
+): (() => void) => addListener(channel, (_event, data) => handler(data));
+
 const addListener = (channel: string, handler: (event: IpcRendererEvent, data: unknown) => void): (() => void) => {
   const set = listeners.get(channel) ?? new Set();
   set.add(handler);

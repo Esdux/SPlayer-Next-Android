@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CSSProperties } from "vue";
 import { usePopupZIndex } from "@/composables/useZIndex";
+import { registerBackInterceptor } from "@/services/backStack";
 
 export interface SDialogProps {
   /** 控制打开状态（v-model:open） */
@@ -29,6 +30,8 @@ export interface SDialogProps {
   destroyOnClose?: boolean;
   /** 自定义固定层级 */
   zIndex?: number;
+  /** 竖屏手机：以底部弹层形式从下方贴边弹出 */
+  mobileSheet?: boolean;
 }
 
 const props = withDefaults(defineProps<SDialogProps>(), {
@@ -39,22 +42,63 @@ const props = withDefaults(defineProps<SDialogProps>(), {
   height: "auto",
   lazy: true,
   destroyOnClose: false,
+  mobileSheet: false,
 });
 
 const DESTROY_DELAY_MS = 180;
 
-const containerStyle = computed(() => ({
-  width: props.width,
-  height: props.height === "auto" ? undefined : props.height,
-  maxHeight: props.height === "auto" ? "85vh" : undefined,
-  top: props.top,
-}));
+/** 竖屏手机判定：仅竖屏弹层模式使用 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+const sheet = computed(() => props.mobileSheet && isPhoneViewport.value);
+
+/** 竖屏可用高度：扣掉状态栏、手势区与四周间距 */
+const phoneMaxHeight =
+  "calc(100dvh - var(--android-safe-top, 0px) - max(var(--android-safe-bottom, 0px), var(--android-ime-bottom, 0px)) - 32px)";
+
+const containerStyle = computed(() => {
+  if (sheet.value) {
+    // 底部弹层：贴底、左右各留 4px，并避让状态栏与手势区
+    return {
+      width: "calc(100vw - 8px)",
+      height: props.height === "auto" ? undefined : phoneMaxHeight,
+      maxHeight: phoneMaxHeight,
+      top: "auto",
+      // 键盘弹出时整体上抬，避免输入框被盖住
+      bottom:
+        "calc(max(var(--android-safe-bottom, 0px), var(--android-ime-bottom, 0px)) + 24px)",
+      left: "4px",
+    };
+  }
+  if (isPhoneViewport.value) {
+    // 竖屏非弹层：宽度不超出屏幕并留间距，指定高度时撑满可用上下空间
+    return {
+      width: `min(${props.width}, calc(100vw - 16px))`,
+      height: props.height === "auto" ? undefined : phoneMaxHeight,
+      maxHeight: phoneMaxHeight,
+      top: "calc(var(--android-safe-top, 0px) + 8px)",
+      left: "50%",
+      transform: "translateX(-50%)",
+    };
+  }
+  return {
+    width: props.width,
+    height: props.height === "auto" ? undefined : props.height,
+    maxHeight: props.height === "auto" ? "85vh" : undefined,
+    top: props.top,
+  };
+});
 
 const emit = defineEmits<{
   "update:open": [value: boolean];
 }>();
 
+/** 位置依赖安全区 CSS 变量，首帧可能还没算稳，先隐藏一帧再显示避免跳变 */
+const layoutReady = ref(false);
+
 const isOpen = ref(props.open ?? false);
+
+/** 返回键拦截解绑函数 */
+let offBack: (() => void) | undefined;
 const mounted = ref((!props.lazy && !props.destroyOnClose) || isOpen.value);
 let destroyTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -89,9 +133,32 @@ watch(
   },
 );
 
-watch(isOpen, syncMounted, { immediate: true });
+watch(
+  isOpen,
+  (value) => {
+    syncMounted(value);
+    if (!value) {
+      layoutReady.value = false;
+      offBack?.();
+      offBack = undefined;
+      return;
+    }
+    if (!offBack) {
+      offBack = registerBackInterceptor(() => {
+        if (!isOpen.value) return false;
+        setOpen(false);
+        return true;
+      });
+    }
+    // 等两帧：一帧让 DOM 挂载，一帧让安全区变量与尺寸计算落到最终值
+    requestAnimationFrame(() => requestAnimationFrame(() => { layoutReady.value = true; }));
+  },
+  { immediate: true },
+);
 
 onBeforeUnmount(() => {
+  offBack?.();
+  offBack = undefined;
   if (destroyTimer) clearTimeout(destroyTimer);
 });
 
@@ -120,15 +187,21 @@ const setOpen = (val: boolean): void => {
       />
       <DialogContent
         data-dialog-content
-        :style="[containerStyle, { zIndex: activeZIndex }]"
+        :style="[containerStyle, { zIndex: activeZIndex }, layoutReady ? {} : { visibility: 'hidden' }]"
         :class="[
-          'fixed left-1/2 -translate-x-1/2',
-          top ? '' : 'top-1/2 -translate-y-1/2',
-          'rounded-xl shadow-xl overflow-hidden',
+          'fixed',
+          sheet ? '' : 'left-1/2',
+          sheet ? '' : 'md:-translate-x-1/2',
+          sheet || top || isPhoneViewport ? '' : 'top-1/2 -translate-y-1/2',
+          sheet ? 'rounded-t-2xl rounded-b-2xl' : 'rounded-xl',
+          'shadow-xl overflow-hidden',
           'flex flex-col',
-          top
-            ? 'data-[state=open]:animate-dialog-in-top data-[state=closed]:animate-dialog-out-top'
-            : 'data-[state=open]:animate-dialog-in data-[state=closed]:animate-dialog-out',
+          // 竖屏弹层的位置由 top/bottom 与 translateX 决定，位移动画会与之冲突导致先错位再归位
+          sheet || isPhoneViewport
+            ? 'transition-opacity duration-150 data-[state=open]:opacity-100 data-[state=closed]:opacity-0'
+            : top
+              ? 'data-[state=open]:animate-dialog-in-top data-[state=closed]:animate-dialog-out-top'
+              : 'data-[state=open]:animate-dialog-in data-[state=closed]:animate-dialog-out',
           'focus:outline-none',
           cover
             ? 'bg-black/55 backdrop-blur-xl backdrop-saturate-160 border border-solid border-white/10 text-cover'

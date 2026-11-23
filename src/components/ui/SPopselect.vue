@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SSelectOption } from "./SSelect.vue";
 import { usePopupZIndex } from "@/composables/useZIndex";
+import { useBackGuard } from "@/composables/useBackGuard";
 
 export interface SPopselectProps {
   modelValue?: string | number | boolean;
@@ -35,7 +36,13 @@ const emit = defineEmits<{
 
 const { zIndex, onOpenChange } = usePopupZIndex();
 
+/** 下拉开合状态，用于接住系统返回键 */
+const openState = ref(false);
+
+useBackGuard(() => openState.value, () => handleOpenChange(false));
+
 const handleOpenChange = (open: boolean): void => {
+  openState.value = open;
   onOpenChange(open);
   emit("update:open", open);
 };

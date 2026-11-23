@@ -124,7 +124,7 @@ const selectLayout = (layout: PlayerLayout): void => {
           <IconLucideMaximize v-else />
         </template>
       </SButton>
-      <WindowControls cover />
+      <!-- 安卓没有窗口最小化/最大化，横屏不再显示窗口管理按钮 -->
     </div>
   </div>
 </template>

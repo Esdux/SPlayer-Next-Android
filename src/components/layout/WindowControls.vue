@@ -12,6 +12,9 @@ const props = defineProps<{
   directQuit?: boolean;
 }>();
 
+/** 竖屏没有窗口管理器语义，整套窗口控件不渲染 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+
 const { isMaximized, isBorderless, minimize, toggleMaximize, close, quit } = useWindowControls();
 
 const onClose = (): void => {
@@ -20,7 +23,7 @@ const onClose = (): void => {
 </script>
 
 <template>
-  <div v-if="isBorderless" class="flex items-center gap-3 shrink-0">
+  <div v-if="isBorderless && !isPhoneViewport" class="flex items-center gap-3 shrink-0">
     <SButton
       class="window-control-button app-no-drag"
       :type="cover ? 'cover' : undefined"

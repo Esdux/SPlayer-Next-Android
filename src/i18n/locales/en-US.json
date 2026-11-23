@@ -211,8 +211,10 @@
     "searchGoto": "Search for \"{keyword}\"",
     "searchCommandHint": "Search songs, or type / for commands",
     "searchCommandTip": "Type to jump to a setting or page, or run a common action",
+    "searchEmpty": "Type a keyword to search",
     "searchSection": {
       "quick": "Quick",
+      "hot": "Trending",
       "history": "Recent searches",
       "pages": "Pages",
       "actions": "Actions"

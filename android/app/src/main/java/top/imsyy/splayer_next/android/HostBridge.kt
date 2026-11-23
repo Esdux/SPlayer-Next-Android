@@ -24,6 +24,23 @@ class HostBridge(private val activity: MainActivity) {
      * @param payload - JSON 数组字符串形式的参数
      * @returns JSON 形式的结果
      */
+    /**
+     * 由前端声明是否接管系统返回：全屏播放页打开时先回歌词页、再收起播放页
+     * @param enabled - 是否接管
+     */
+    /**
+     * 退到后台（根路由时返回键的落点）
+     */
+    @JavascriptInterface
+    fun moveTaskToBack() {
+        MainActivity.moveToBackground()
+    }
+
+    @JavascriptInterface
+    fun setBackHandler(enabled: Boolean) {
+        MainActivity.setBackHandlerEnabled(enabled)
+    }
+
     @JavascriptInterface
     fun invoke(channel: String, payload: String): String = dispatcher.invokeSync(channel, payload)
 

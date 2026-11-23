@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePopupZIndex } from "@/composables/useZIndex";
+import { useBackGuard } from "@/composables/useBackGuard";
 
 export interface SPopoverProps {
   /** 弹出位置 */
@@ -46,6 +47,9 @@ const emit = defineEmits<{
 const { zIndex, onOpenChange } = usePopupZIndex();
 
 const isOpen = ref(props.open ?? false);
+
+// 浮层接住系统返回键
+useBackGuard(() => isOpen.value, () => setOpen(false));
 
 // 同步外部 open prop
 watch(

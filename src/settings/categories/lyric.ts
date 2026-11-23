@@ -169,13 +169,33 @@ const lyricCategory: SettingCategory = {
         },
         {
           key: "fontSize",
-          type: "slider",
+          type: "number",
           binding: { store: "settings", path: "lyric.fontSize" },
           min: 12,
           max: 80,
           step: 1,
           defaultValue: 48,
           marks: { 12: "12", 48: "48", 80: "80" },
+        },
+        {
+          key: "landscapeFontSize",
+          type: "number",
+          binding: { store: "settings", path: "lyric.landscapeFontSize" },
+          min: 0,
+          max: 120,
+          step: 1,
+          defaultValue: 52,
+          marks: { 0: "0", 52: "52", 120: "120" },
+        },
+        {
+          key: "landscapeFontWeight",
+          type: "number",
+          binding: { store: "settings", path: "lyric.landscapeFontWeight" },
+          min: 300,
+          max: 900,
+          step: 100,
+          defaultValue: 700,
+          marks: { 300: "300", 700: "700", 900: "900" },
         },
         {
           key: "translationFontSizeFollowMain",
@@ -185,7 +205,7 @@ const lyricCategory: SettingCategory = {
         },
         {
           key: "translationFontSize",
-          type: "slider",
+          type: "number",
           binding: { store: "settings", path: "lyric.translationFontSize" },
           min: 12,
           max: 48,
@@ -196,7 +216,7 @@ const lyricCategory: SettingCategory = {
         },
         {
           key: "fontWeight",
-          type: "slider",
+          type: "number",
           binding: { store: "settings", path: "lyric.fontWeight" },
           min: 100,
           max: 900,
@@ -375,7 +395,7 @@ const lyricCategory: SettingCategory = {
           children: [
             {
               key: "springMass",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.springMass" },
               min: 0.1,
               max: 5,
@@ -385,7 +405,7 @@ const lyricCategory: SettingCategory = {
             },
             {
               key: "springDamping",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.springDamping" },
               min: 1,
               max: 50,
@@ -395,7 +415,7 @@ const lyricCategory: SettingCategory = {
             },
             {
               key: "springStiffness",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.springStiffness" },
               min: 10,
               max: 300,
@@ -416,7 +436,7 @@ const lyricCategory: SettingCategory = {
           children: [
             {
               key: "amllVerticalSpringMass",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.amllVerticalSpringMass" },
               min: 0.1,
               max: 5,
@@ -426,7 +446,7 @@ const lyricCategory: SettingCategory = {
             },
             {
               key: "amllVerticalSpringDamping",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.amllVerticalSpringDamping" },
               min: 0,
               max: 40,
@@ -436,7 +456,7 @@ const lyricCategory: SettingCategory = {
             },
             {
               key: "amllVerticalSpringStiffness",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.amllVerticalSpringStiffness" },
               min: 1,
               max: 300,
@@ -452,7 +472,7 @@ const lyricCategory: SettingCategory = {
             },
             {
               key: "amllScaleSpringMass",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.amllScaleSpringMass" },
               min: 0.1,
               max: 5,
@@ -462,7 +482,7 @@ const lyricCategory: SettingCategory = {
             },
             {
               key: "amllScaleSpringDamping",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.amllScaleSpringDamping" },
               min: 0,
               max: 40,
@@ -472,7 +492,7 @@ const lyricCategory: SettingCategory = {
             },
             {
               key: "amllScaleSpringStiffness",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "lyric.amllScaleSpringStiffness" },
               min: 1,
               max: 300,
@@ -495,7 +515,7 @@ const lyricCategory: SettingCategory = {
       items: [
         {
           key: "alignPosition",
-          type: "slider",
+          type: "number",
           binding: { store: "settings", path: "lyric.alignPosition" },
           min: 0.1,
           max: 0.9,
@@ -505,7 +525,7 @@ const lyricCategory: SettingCategory = {
         },
         {
           key: "wordFadeWidth",
-          type: "slider",
+          type: "number",
           binding: { store: "settings", path: "lyric.wordFadeWidth" },
           min: 0.1,
           max: 1,
@@ -515,7 +535,7 @@ const lyricCategory: SettingCategory = {
         },
         {
           key: "inactiveAlpha",
-          type: "slider",
+          type: "number",
           binding: { store: "settings", path: "lyric.inactiveAlpha" },
           min: 0,
           max: 1,

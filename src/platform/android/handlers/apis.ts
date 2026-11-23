@@ -20,11 +20,22 @@ type Platform = "netease" | "qqmusic" | "kugou";
  * @param params - 业务参数
  * @returns 统一响应
  */
-const dispatch = (platform: Platform, name: string, params: Record<string, unknown>) => {
+const dispatch = async (platform: Platform, name: string, params: Record<string, unknown>) => {
+  // 网易的前端读 body，保持不变
   if (platform === "netease") return neteaseCall(name, params);
-  if (platform === "kugou") return kugouCall(name, params);
-  if (platform === "qqmusic") return qqmusicCall(name, params);
-  return Promise.resolve({ ok: false, error: `未知平台: ${platform}` });
+  if (platform !== "kugou" && platform !== "qqmusic") {
+    return { ok: false, error: `未知平台: ${platform}` };
+  }
+  const result =
+    platform === "kugou" ? await kugouCall(name, params) : await qqmusicCall(name, params);
+  if (result && typeof result === "object" && "ok" in result) {
+    // 原生 provider 成功时给的是 { ok, status, body }，桌面契约要 { ok, data }
+    const typed = result as { ok: boolean; status?: number; body?: unknown; error?: string };
+    if (!typed.ok) return typed;
+    return { ok: true, status: typed.status, data: typed.body };
+  }
+  // 搜索分支为了对齐前端已经直接返回业务对象，这里补一层信封
+  return { ok: true, data: result };
 };
 
 /**

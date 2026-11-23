@@ -5,6 +5,14 @@ import { useQueuePanel } from "@/composables/useQueuePanel";
 
 defineEmits<{ close: [] }>();
 
+const props = withDefaults(
+  defineProps<{ hideHeader?: boolean; hideClose?: boolean }>(),
+  { hideHeader: false, hideClose: false },
+);
+
+/** 竖屏：去掉为 hover 删除预留的右侧空间，删除按钮常显 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+
 const { t } = useI18n();
 const listRef = shallowRef<SVirtualListExposed | null>(null);
 const {
@@ -21,10 +29,10 @@ const {
 </script>
 
 <template>
-  <div class="flex flex-col h-full text-cover">
-    <div class="shrink-0 flex items-start justify-between gap-4 pl-1 pr-20 pb-4">
+  <div class="flex flex-col h-full text-on-surface">
+    <div v-if="!props.hideHeader" class="shrink-0 flex items-start justify-between gap-3 pl-1 pr-4 pb-4">
       <div class="flex flex-col min-w-0 pl-2.5">
-        <h2 class="m-0 text-2xl font-semibold leading-tight truncate">
+        <h2 class="m-0 text-2xl font-semibold leading-tight">
           {{ t("playlist.title") }}
         </h2>
         <span class="text-sm text-cover/55 mt-1">
@@ -52,7 +60,14 @@ const {
         >
           <template #icon><IconLucideTrash2 /></template>
         </SButton>
-        <SButton type="cover" variant="secondary" round :size="40" @click="$emit('close')">
+        <SButton
+          v-if="!props.hideClose"
+          type="cover"
+          variant="secondary"
+          round
+          :size="40"
+          @click="$emit('close')"
+        >
           <template #icon><IconLucideX /></template>
         </SButton>
       </div>
@@ -60,7 +75,7 @@ const {
     <!-- 列表 -->
     <div
       v-if="queueLength > 0"
-      class="flex-1 min-h-0"
+      class="flex-1 min-h-0 w-full"
       :style="{
         maskImage:
           'linear-gradient(180deg, transparent 0px, #000 32px, #000 calc(100% - 32px), transparent 100%)',
@@ -68,6 +83,8 @@ const {
     >
       <SVirtualList
         ref="listRef"
+        class="w-full"
+        hide-scrollbar
         :items="queue"
         :item-height="72"
         :padding-top="32"
@@ -79,9 +96,9 @@ const {
         :get-item-key="(item: Track) => item.id"
       >
         <template #default="{ item, index }: { item: Track; index: number }">
-          <div class="relative pl-1 pr-20 py-1">
+          <div class="relative pl-1 py-1" :class="isPhoneViewport ? 'pr-3' : 'pr-20'">
             <div
-              class="group relative flex items-center gap-3 px-2.5 h-16 rounded-xl cursor-pointer transition-[background-color] duration-150"
+              class="group relative w-full flex items-center gap-3 px-2.5 h-16 rounded-xl cursor-pointer transition-[background-color] duration-150"
               :class="
                 index === statusStore.playIndex
                   ? 'bg-cover/14 text-cover'
@@ -109,7 +126,7 @@ const {
                 variant="ghost"
                 circle
                 size="tiny"
-                class="opacity-0 group-hover:opacity-100"
+                :class="isPhoneViewport ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
                 @click.stop="removeAt(index)"
               >
                 <template #icon><IconLucideX /></template>

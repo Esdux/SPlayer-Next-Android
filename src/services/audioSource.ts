@@ -337,7 +337,10 @@ export const resolveTrackSource = async (
   const cacheEnabled = settings.system.cache?.songCache?.enabled === true && cacheKey !== null;
   if (cacheEnabled) {
     const cached = await window.api.cache.song.lookup(cacheKey!);
-    if (cached) return { source: cached, fromCache: true, provider: "cache" };
+    // 只接受字符串路径，避免把失败信封当成缓存地址
+    if (typeof cached === "string" && cached) {
+      return { source: cached, fromCache: true, provider: "cache" };
+    }
   }
   // 流媒体
   if (track.source === "streaming") {
@@ -368,6 +371,25 @@ export const resolveTrackSource = async (
   }
   // 在线源（netease / qqmusic / kugou）
   if (isOnlinePlatform(track.source)) {
+    // 163 key 对照表命中时直接用本地文件：省流、音质更好，也不再受接口波动影响
+    if (track.source === "netease") {
+      try {
+        const hit = await window.api.library.findLocalByKey(
+          track.id,
+          track.title ?? "",
+          track.artists?.[0]?.name ?? "",
+          track.duration ?? 0,
+        );
+        // 桥回归值可能带 IpcResponse 信封，两种形状都接受
+        const payload = (hit as { data?: { path?: string | null } } | null)?.data ?? hit;
+        const localPath = payload?.path;
+        if (typeof localPath === "string" && localPath) {
+          return { source: localPath, fromCache: false, provider: "local" };
+        }
+      } catch {
+        // 对照表不可用时照常走在线解析
+      }
+    }
     try {
       const resolved = await resolveOnlineUrl(track, songLevel, options);
       if (!resolved.ok) {

@@ -19,6 +19,8 @@ import IconMoreHorizontal from "~icons/lucide/more-horizontal";
 import IconCopy from "~icons/lucide/copy";
 
 const { t } = useI18n();
+/** 竖屏：封面与信息上下排布，避免信息区被封面挤窄 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
 const route = useRoute();
 const router = useRouter();
 const { copy } = useCopyText();
@@ -254,7 +256,7 @@ onBeforeUnmount(() => {
     <div v-if="header" class="shrink-0 px-5 pb-2">
       <div
         class="flex mt-2 transition-[gap,margin] duration-300"
-        :class="collapsed ? 'gap-3' : 'gap-5'"
+        :class="[collapsed ? 'gap-3' : 'gap-5', isPhoneViewport ? 'flex-col items-center' : '']"
       >
         <!-- 封面 -->
         <DetailCover
@@ -378,13 +380,15 @@ onBeforeUnmount(() => {
                   <IconMaterialSymbolsFavoriteRounded v-if="subscribe.isSubscribed.value" />
                   <IconMaterialSymbolsFavoriteOutlineRounded v-else />
                 </template>
-                {{
-                  t(
-                    subscribe.isSubscribed.value
-                      ? "collection.unsubscribe"
-                      : "collection.subscribe",
-                  )
-                }}
+                <span class="hidden sm:inline">
+                  {{
+                    t(
+                      subscribe.isSubscribed.value
+                        ? "collection.unsubscribe"
+                        : "collection.subscribe",
+                    )
+                  }}
+                </span>
               </SButton>
               <SDropdownMenu
                 v-if="collection && moreMenuItems.length > 0"

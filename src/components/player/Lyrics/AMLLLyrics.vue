@@ -375,6 +375,8 @@ defineExpose({
   height: 100%;
   position: relative;
   overflow: hidden;
+  /* 歌词区自成布局/绘制边界，内部重排不外溢到整个播放页 */
+  contain: layout paint;
   user-select: none;
   opacity: 0;
   transition: opacity 120ms cubic-bezier(0.2, 0, 0, 1);
@@ -435,7 +437,8 @@ defineExpose({
   box-shadow: none !important;
   border: none !important;
   outline: none !important;
-  contain: none !important;
+  /* 每行独立布局，单行 transform 不再牵动整页重排；只隔离 layout/style，避免裁掉阴影 */
+  contain: layout style !important;
   overflow: visible !important;
 }
 

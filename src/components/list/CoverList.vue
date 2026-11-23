@@ -165,7 +165,7 @@ const getRowKey = (row: Row): string => row.id;
     v-else
     class="grid"
     :style="{
-      padding: `${paddingTop}px ${paddingX}px ${paddingBottom}px`,
+      padding: `${paddingTop}px ${paddingX}px ${virtualPaddingBottom}px`,
       gridTemplateColumns: `repeat(auto-fill, minmax(${minSize}px, 1fr))`,
       gap: `${gap}px`,
     }"

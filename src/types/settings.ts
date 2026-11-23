@@ -148,6 +148,10 @@ export interface LyricSettings {
   translationFontSize: number;
   /** 歌词字重（100~900） */
   fontWeight: number;
+  /** 横屏歌词字号（px，0 表示沿用通用字号） */
+  landscapeFontSize: number;
+  /** 横屏歌词字重 */
+  landscapeFontWeight: number;
   /** 歌词混合模式 */
   lyricBlendMode: LyricBlendMode;
   /** 歌词字体 */

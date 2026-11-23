@@ -211,8 +211,10 @@
     "searchGoto": "搜索「{keyword}」",
     "searchCommandHint": "搜索歌曲，或输入 / 进入命令模式",
     "searchCommandTip": "输入关键词，跳转设置项、页面或执行常用操作",
+    "searchEmpty": "输入关键词开始搜索",
     "searchSection": {
       "quick": "快捷",
+      "hot": "热搜",
       "history": "搜索历史",
       "pages": "页面",
       "actions": "操作"
@@ -403,7 +405,7 @@
     "title": "搜索",
     "plugins": "插件",
     "pluginSource": "选择音源",
-    "titleSuffix": "的搜索结果",
+    "titleSuffix": "",
     "emptyKeyword": "请输入关键词开始搜索",
     "noResults": "没有找到匹配内容",
     "noResultsHint": "换个关键词或切换音源试试",
@@ -1265,6 +1267,14 @@
     "fontSize": {
       "label": "歌词字号",
       "description": "主行文字大小"
+    },
+    "landscapeFontSize": {
+      "label": "横屏歌词字号",
+      "description": "横屏全屏歌词的字号，0 表示沿用通用字号"
+    },
+    "landscapeFontWeight": {
+      "label": "横屏歌词字重",
+      "description": "横屏全屏歌词的文字粗细"
     },
     "translationFontSizeFollowMain": {
       "label": "副行字号跟随主行",

@@ -290,7 +290,10 @@ export const scheduleNextTrackPreload = (): void => {
       if (source.cacheRequest) {
         const cachedPath = await source.cacheRequest(id, abort.signal);
         if (token !== currentToken) return;
-        if (cachedPath) source = { source: cachedPath, fromCache: true, provider: "cache" };
+        // 只接受字符串路径，失败信封不能当作缓存地址
+        if (typeof cachedPath === "string" && cachedPath) {
+          source = { source: cachedPath, fromCache: true, provider: "cache" };
+        }
       }
       let preparedId: string | undefined;
       let autoMixStartMs: number | undefined;

@@ -41,6 +41,9 @@ const isChildrenActive = computed(() => {
   return model.value === true;
 });
 
+/** 竖屏手机：标签与控件改为上下排布，避免控件列挤占标签宽度 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+
 const isDisabled = computed(() => props.item.disabled?.() ?? false);
 const isVisible = computed(() => props.item.visible?.() ?? true);
 
@@ -61,7 +64,10 @@ const descriptionText = computed(() =>
     <div
       v-else
       class="flex items-center justify-between gap-4 rounded-xl bg-surface-panel border border-solid border-outline-variant/15 px-4 py-3.5 transition-all duration-300"
-      :class="highlightKey === item.key ? 'animate-highlight-pulse' : ''"
+      :class="[
+        highlightKey === item.key ? 'animate-highlight-pulse' : '',
+        isPhoneViewport ? 'flex-col items-stretch gap-2' : '',
+      ]"
     >
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 text-base">
@@ -75,7 +81,7 @@ const descriptionText = computed(() =>
         </div>
       </div>
 
-      <div class="shrink-0 w-50 flex justify-end">
+      <div class="shrink-0 flex justify-end" :class="isPhoneViewport ? 'w-full' : 'w-50'">
         <SSwitch
           v-if="item.type === 'switch'"
           :model-value="model"

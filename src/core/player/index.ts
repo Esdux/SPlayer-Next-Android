@@ -1494,6 +1494,9 @@ export const restoreLastTrack = async (): Promise<void> => {
   const status = useStatusStore();
   const settings = useSettingsStore();
   const media = useMediaStore();
+  // currentTrack 来自队列，而队列是 IndexedDB 异步恢复的：
+  // 启动时序上 initPlayer 可能还没跑完，这里补一次（restoreQueue 幂等）
+  if (queue.queueEntries.value.length === 0) await queue.restoreQueue();
   const lastTrack = status.currentTrack;
   if (!lastTrack) {
     status.state = "idle";
@@ -1530,7 +1533,11 @@ export const restoreLastTrack = async (): Promise<void> => {
         status.position = lastPosition;
         playback.setCurrentTime(lastPosition);
       }
+      const failure = loaded.status === "loaded" ? loaded.result : loaded;
+      console.warn("[player] 恢复上次播放失败", loaded.status, JSON.stringify(failure).slice(0, 300));
     }
+  } catch (error) {
+    console.warn("[player] 恢复上次播放抛错", (error as Error)?.stack ?? String(error));
   } finally {
     isRestoringLastTrack = false;
     pendingPlayAfterRestore = false;

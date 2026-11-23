@@ -12,6 +12,7 @@ import { useDownload } from "@/composables/useDownload";
 import { useFavorite } from "@/composables/useFavorite";
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import { useFloatingPlayerBar } from "@/composables/useFloatingPlayerBar";
+import { useMediaQuery } from "@vueuse/core";
 import { formatTime } from "@/utils/time";
 import { formatFileSize } from "@/utils/format";
 import { isLosslessQuality, getQualityLabel } from "@/utils/quality";
@@ -299,8 +300,13 @@ const batch = useMultiSelect(sortedItems, {
 });
 const { deleteConfirmOpen, deleteDialogTitle, deleteDialogContent } = batch;
 
+/** 手机窄屏强制紧凑行，桌面档 88dp 的行高在竖屏下一屏放不下几首 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+
 /** 是否使用紧凑列表样式 */
-const isCompactList = computed(() => settings.appearance.songListStyle === "compact");
+const isCompactList = computed(
+  () => settings.appearance.songListStyle === "compact" || isPhoneViewport.value,
+);
 
 /** 歌曲行高度 */
 const rowHeight = computed(() => (isCompactList.value ? 56 : 88));
@@ -473,12 +479,10 @@ defineExpose({
       >
         <!-- 搜索无结果 -->
         <template #empty>
-          <div
-            v-if="searchQuery"
-            class="flex flex-col items-center gap-2 text-on-surface-variant/40"
-          >
-            <IconLucideSearchX class="size-8" />
-            <span class="text-sm">{{ t("songList.noResults") }}</span>
+          <div class="flex flex-col items-center gap-2 text-on-surface-variant/40">
+            <IconLucideSearchX v-if="searchQuery" class="size-8" />
+            <IconLucideMusic v-else class="size-8" />
+            <span class="text-sm">{{ searchQuery ? t("songList.noResults") : "暂无内容" }}</span>
           </div>
         </template>
         <!-- 固定表头 -->
@@ -490,7 +494,7 @@ defineExpose({
             <!-- 批量模式 -->
             <div
               v-if="batch.active.value"
-              class="flex items-center gap-2 pl-3 pr-3 mx-3 h-10 text-sm"
+              class="flex items-center gap-2 pl-3 pr-3 mx-3 h-10 text-sm overflow-x-auto whitespace-nowrap"
             >
               <div v-if="showIndex" class="w-8 shrink-0 flex items-center justify-center">
                 <SCheckbox
@@ -692,8 +696,14 @@ defineExpose({
             <div
               data-song-item
               :class="trackRowClass(item)"
-              @click="batch.active.value ? batch.toggle(item.id) : undefined"
-              @dblclick="onTrackDblClick(item, index)"
+              @click="
+                batch.active.value
+                  ? batch.toggle(item.id)
+                  : isPhoneViewport
+                    ? onTrackDblClick(item, index)
+                    : undefined
+              "
+              @dblclick="isPhoneViewport ? undefined : onTrackDblClick(item, index)"
               @contextmenu="contextTrack = item"
             >
               <!-- 序号 / 多选 -->

@@ -1,4 +1,5 @@
 import { contextBridge, electronAPI, ipcRenderer, os, webUtils } from "./electron-shim";
+import { clearRecognitionListeners, onRecognitionEvent } from "./services/recognition";
 import type { PlaybackQueueSnapshot } from "@shared/types/music";
 
 import type { ExternalApiStatus, McpStatus, TaskbarLyricSettings } from "@shared/types/settings";
@@ -263,6 +264,9 @@ const api = {
       ipcRenderer.invoke("system:copyTrackFile", track),
     // 打开日志目录
     openLogsDir: () => ipcRenderer.invoke("system:openLogsDir"),
+    // 让系统手势在进度条那段不抢触摸，否则底部横拖会被手势导航取消
+    setGestureExclusion: (rect: { top: number; bottom: number } | null) =>
+      ipcRenderer.invoke("system:setGestureExclusion", rect),
     // 同步语言到主进程
     setLocale: (locale: string) => ipcRenderer.send("system:setLocale", locale),
     // 显示并聚焦主窗口
@@ -317,6 +321,21 @@ const api = {
       ipcRenderer.invoke("library:getArtistTracks", artistName),
     // 按 ID 批量获取曲目
     getTracksByIds: (ids: string[]) => ipcRenderer.invoke("library:getTracksByIds", ids),
+    // 读取本地文件 163key 里的 musicId，用于把本地曲映射到在线收藏
+    lookupMusicId: (path: string) => ipcRenderer.invoke("library:lookupMusicId", path),
+    findLocalByKey: (
+      musicId: string,
+      title = "",
+      artist = "",
+      durationMs = 0,
+    ) =>
+      ipcRenderer.invoke(
+        "library:findLocalByKey",
+        musicId,
+        title,
+        artist,
+        durationMs,
+      ) as Promise<{ path?: string | null; count?: number } | null>,
     // 搜索曲目
     searchTracks: (query: string) => ipcRenderer.invoke("library:searchTracks", query),
     // 搜索窗分组搜索（歌曲 / 专辑 / 歌手）
@@ -815,6 +834,26 @@ const api = {
     getLyrics: (serverId: string, trackId: string, hint?: { artist?: string; title?: string }) =>
       ipcRenderer.invoke("streaming:getLyrics", serverId, trackId, hint),
   },
+  lyricon: {
+    /**
+     * 推送当前歌曲与结构化歌词给词幕
+     * @param payload - 歌曲信息与歌词行
+     * @returns 是否推送成功
+     */
+    setSong: (payload: unknown) => ipcRenderer.invoke("lyricon:setSong", payload),
+    /**
+     * 同步播放位置
+     * @param positionMs - 毫秒
+     */
+    setPosition: (positionMs: number) => ipcRenderer.invoke("lyricon:setPosition", positionMs),
+    /**
+     * 同步播放状态
+     * @param playing - 是否播放中
+     */
+    setPlaying: (playing: boolean) => ipcRenderer.invoke("lyricon:setPlaying", playing),
+    /** 断开词幕连接 */
+    release: () => ipcRenderer.invoke("lyricon:release"),
+  },
   recognition: {
     /** 当前平台是否支持听歌识曲 */
     isSupported: () => ipcRenderer.invoke("recognition:isSupported"),
@@ -837,7 +876,14 @@ const api = {
      */
     onEvent: (callback: (event: RecognitionEvent) => void) => {
       ipcRenderer.removeAllListeners("recognition:event");
-      return subscribe<RecognitionEvent>("recognition:event", callback);
+      clearRecognitionListeners();
+      const offIpc = subscribe<RecognitionEvent>("recognition:event", callback);
+      // 安卓的识别会话跑在同一个 bundle 内，事件不经原生桥，直接订阅服务层
+      const offLocal = onRecognitionEvent(callback);
+      return () => {
+        offIpc();
+        offLocal();
+      };
     },
   },
   lastfm: {

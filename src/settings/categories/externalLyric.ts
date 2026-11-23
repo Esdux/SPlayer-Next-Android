@@ -25,7 +25,7 @@ const desktopLyricSection: SettingSection = {
     },
     {
       key: "desktopLyricFontWeight",
-      type: "slider",
+      type: "number",
       binding: { store: "settings", path: "system.desktopLyric.fontWeight" },
       min: 100,
       max: 900,
@@ -148,7 +148,7 @@ const dynamicIslandSection: SettingSection = {
     },
     {
       key: "dynamicIslandScale",
-      type: "slider",
+      type: "number",
       binding: { store: "settings", path: "system.dynamicIsland.scale" },
       min: 0.5,
       max: 2,
@@ -158,7 +158,7 @@ const dynamicIslandSection: SettingSection = {
     },
     {
       key: "dynamicIslandFontWeight",
-      type: "slider",
+      type: "number",
       binding: { store: "settings", path: "system.dynamicIsland.fontWeight" },
       min: 100,
       max: 900,
@@ -290,7 +290,7 @@ const taskbarLyricSection: SettingSection = {
         },
         {
           key: "taskbarLyricMaxWidth",
-          type: "slider",
+          type: "number",
           binding: { store: "settings", path: "system.taskbarLyric.maxWidth" },
           visible: () => useSettingsStore().system.taskbarLyric.autoMaxWidth === false,
           min: 200,
@@ -337,7 +337,7 @@ const taskbarLyricSection: SettingSection = {
     },
     {
       key: "taskbarLyricFontSize",
-      type: "slider",
+      type: "number",
       binding: { store: "settings", path: "system.taskbarLyric.fontSize" },
       min: 12,
       max: 20,
@@ -347,7 +347,7 @@ const taskbarLyricSection: SettingSection = {
     },
     {
       key: "taskbarLyricFontWeight",
-      type: "slider",
+      type: "number",
       binding: { store: "settings", path: "system.taskbarLyric.fontWeight" },
       min: 100,
       max: 900,

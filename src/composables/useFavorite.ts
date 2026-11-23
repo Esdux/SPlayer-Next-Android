@@ -45,7 +45,16 @@ export const useFavorite = () => {
    */
   const isLiked = (track: Track | null | undefined): boolean => {
     if (!track) return false;
-    if (track.source === "local") return library.isLiked(track.id);
+    if (track.source === "local") {
+      // 首次查询时惰性补读本地红心，未读到位先返回当前值
+      if (!library.likedReady) void library.loadLiked();
+      if (library.isLiked(track.id)) return true;
+      // 文件里带 163key 时能对到在线歌曲，收藏状态以在线红心为准
+      const onlineId = library.onlineMusicIdOf(track.id);
+      if (onlineId) return user.isLiked(onlineId);
+      void library.ensureOnlineMusicId(track);
+      return false;
+    }
     if (track.source === "netease") return user.isLiked(track.id);
     if (track.source === "streaming") return streaming.isFavorite(track);
     return false;

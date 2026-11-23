@@ -185,7 +185,7 @@ onUnmounted(() => {
           :placeholder="t('common.search')"
           clearable
           round
-          class="w-40 focus-within:w-56"
+          class="w-28 focus-within:w-36"
           data-search-input
         >
           <template #prefix>

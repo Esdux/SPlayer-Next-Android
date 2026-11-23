@@ -94,11 +94,29 @@ const handleLyricSeek = async (timeMs: number): Promise<void> => {
   if (!status.isPlaying) await player.play();
 };
 
-const lyricFontSize = computed(() =>
-  settings.lyric.adaptiveFontSize
-    ? `calc(${settings.lyric.fontSize} / 1080 * 100vh)`
-    : `${settings.lyric.fontSize}px`,
+/** 手机竖屏：按高度缩放会把字号放大到屏宽装不下一行，改为按屏宽收敛 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+
+/** 横屏优先使用独立的字号与字重，窄屏与横屏不再共用一套数值 */
+const lyricFontWeight = computed(() =>
+  isPhoneViewport.value
+    ? String(settings.lyric.fontWeight)
+    : String(settings.lyric.landscapeFontWeight),
 );
+
+const lyricFontSize = computed(() => {
+  if (isPhoneViewport.value) {
+    // 手机竖屏：按用户配置的字号等比映射，兼顾一行可容纳字数
+    const base = Number(settings.lyric.fontSize) || 48;
+    const size = Math.max(20, Math.min(44, Math.round(base * 0.52)));
+    return `${size}px`;
+  }
+  const landscape = Number(settings.lyric.landscapeFontSize) || 0;
+  if (landscape > 0) return `${landscape}px`;
+  return settings.lyric.adaptiveFontSize
+    ? `calc(${settings.lyric.fontSize} / 1080 * 100vh)`
+    : `${settings.lyric.fontSize}px`;
+});
 
 const lyricSubFontSize = computed(() => {
   if (settings.lyric.translationFontSizeFollowMain) return "max(0.5em, 12px)";
@@ -115,10 +133,11 @@ const lyricSubFontSize = computed(() => {
     <div
       data-player-layout="lyric"
       class="lyric-area relative flex-1 min-h-0"
+      :class="settings.lyric.lyricBlendMode === 'normal' ? 'lyric-normal' : 'lyric-blend'"
       :style="{
         '--lp-credit-opacity': '1',
         '--lp-sub-font-size': lyricSubFontSize,
-        fontWeight: String(settings.lyric.fontWeight),
+        fontWeight: lyricFontWeight,
         fontFamily: settings.lyric.fontFamily || undefined,
         '--lyric-font-zh': settings.lyric.fontFamilyChinese || undefined,
         '--lyric-font-ja': settings.lyric.fontFamilyJapanese || undefined,
@@ -147,6 +166,30 @@ const lyricSubFontSize = computed(() => {
 </template>
 
 <style scoped>
+/* 手机竖屏：放宽行内左右留白，让歌词更接近满宽 */
+.lyric-area :deep(.amll-lyric-player) {
+  --lyric-line-padding-x: 10px !important;
+}
+
+/* normal 混色：去掉 filter 生成的隔离组，改用文字投影保证任意背景上的可读性 */
+.lyric-area.lyric-normal {
+  filter: none;
+}
+
+.lyric-area.lyric-normal :deep(.lp-line),
+.lyric-area.lyric-normal :deep(.lp-content),
+.lyric-area.lyric-normal :deep([class*="lyricLineWrapper"]),
+.lyric-area.lyric-normal :deep([class*="lyricMainLine"]),
+.lyric-area.lyric-normal :deep([class*="lyricSubLine"]) {
+  mix-blend-mode: normal;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.lyric-area.lyric-normal :deep([class*="lyric-player"]) {
+  mix-blend-mode: normal !important;
+  isolation: auto !important;
+}
+
 .lyric-area {
   filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.2));
   mask: linear-gradient(

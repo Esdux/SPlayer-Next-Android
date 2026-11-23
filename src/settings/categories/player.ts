@@ -1,5 +1,6 @@
 import { useSettingsStore } from "@/stores/settings";
 import type { SettingCategory } from "@/types/settings-schema";
+import { isAndroidRuntime } from "@/utils/platform";
 import DeviceSelector from "@/components/settings/custom/DeviceSelector.vue";
 import { isWin } from "@/utils/config";
 import IconLucidePlay from "~icons/lucide/play";
@@ -35,7 +36,7 @@ const playerCategory: SettingCategory = {
           children: [
             {
               key: "fadeDuration",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "system.player.fadeDuration" },
               min: 100,
               max: 600,
@@ -233,7 +234,7 @@ const playerCategory: SettingCategory = {
           children: [
             {
               key: "spectrumBarWidth",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "player.spectrumBarWidth" },
               min: 1,
               max: 12,
@@ -301,5 +302,24 @@ const playerCategory: SettingCategory = {
     },
   ],
 };
+
+// 安卓已支持预载与交叉淡入，AutoMix 依赖的桌面组件仍不可用，过渡段只保留 none / crossfade
+if (isAndroidRuntime()) {
+  const transition = playerCategory.sections.find((section) => section.id === "playbackTransition");
+  if (transition) {
+    transition.items = transition.items
+      .filter((item) => item.key !== "automixComponents")
+      .map((item) =>
+        item.key === "transitionMode" && item.options
+          ? { ...item, options: item.options.filter((option) => option.value !== "automix") }
+          : item,
+      );
+  }
+  // 安卓没有对应的播放实现：输出设备切换、Last.fm 上报，整段不展示
+  const ANDROID_UNSUPPORTED = new Set(["device", "scrobble"]);
+  playerCategory.sections = playerCategory.sections.filter(
+    (section) => !ANDROID_UNSUPPORTED.has(section.id),
+  );
+}
 
 export default playerCategory;

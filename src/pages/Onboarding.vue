@@ -25,9 +25,19 @@ const STEPS = [
 const currentIndex = ref(0);
 const direction = ref<"forward" | "backward">("forward");
 
-const currentStep = computed(() => STEPS[currentIndex.value]);
+/** 安卓上没有流媒体服务与全局快捷键，引导里跳过这两步 */
+const isAndroidRuntime =
+  typeof window !== "undefined" && Boolean((window as unknown as { AndroidHost?: unknown }).AndroidHost);
+
+const steps = computed(() =>
+  isAndroidRuntime
+    ? STEPS.filter((step) => step.key !== "hotkeys" && step.key !== "streaming")
+    : STEPS,
+);
+
+const currentStep = computed(() => steps.value[currentIndex.value]);
 const isFirst = computed(() => currentIndex.value === 0);
-const isLast = computed(() => currentIndex.value === STEPS.length - 1);
+const isLast = computed(() => currentIndex.value === steps.value.length - 1);
 
 const goNext = async (): Promise<void> => {
   if (isLast.value) {
@@ -70,7 +80,7 @@ const complete = async (): Promise<void> => {
         <header class="flex items-center gap-4 mb-8 shrink-0">
           <div class="flex-1 flex items-center gap-1.5">
             <span
-              v-for="(step, index) in STEPS"
+              v-for="(step, index) in steps"
               :key="step.key"
               class="h-1.5 rounded-full transition-all duration-300"
               :class="
@@ -83,7 +93,7 @@ const complete = async (): Promise<void> => {
             />
           </div>
           <span class="text-xs text-on-surface-variant/50 tabular-nums shrink-0">
-            {{ currentIndex + 1 }} / {{ STEPS.length }}
+            {{ currentIndex + 1 }} / {{ steps.length }}
           </span>
         </header>
 

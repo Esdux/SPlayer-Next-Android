@@ -90,8 +90,8 @@ const handleSelect = (item: SMenuItem) => {
 <template>
   <nav class="flex flex-col gap-1">
     <template v-for="item in items" :key="item.key">
-      <!-- 分隔线 -->
-      <SDivider v-if="item.type === 'divider'" class="mx-1" />
+      <!-- 分隔线（收起态不占空间） -->
+      <SDivider v-if="item.type === 'divider' && !collapsed" class="mx-1" />
       <!-- 分类标题 -->
       <div
         v-else-if="item.type === 'group' && item.render"
@@ -113,6 +113,7 @@ const handleSelect = (item: SMenuItem) => {
           :data-menu-key="item.key"
           class="relative flex items-center rounded-lg cursor-pointer select-none overflow-hidden whitespace-nowrap transition-[background-color,color,height,padding] duration-250"
           :class="[
+            collapsed ? 'justify-center' : '',
             item.showCover ? sizeClass.coverItem : sizeClass.item,
             modelValue === item.key
               ? 'bg-primary/10 text-primary'
@@ -136,7 +137,7 @@ const handleSelect = (item: SMenuItem) => {
           />
           <span
             class="flex-1 min-w-0 truncate transition-opacity duration-300"
-            :class="collapsed ? 'opacity-0' : 'opacity-100'"
+            :class="collapsed ? 'hidden' : 'opacity-100'"
           >
             {{ item.label }}
           </span>

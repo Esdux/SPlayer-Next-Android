@@ -16,7 +16,8 @@ import pkg from "./package.json" with { type: "json" };
 export default defineConfig({
   root: ".",
   base: "/assets/web/",
-  publicDir: resolve(__dirname, "public"),
+  // 安卓只需要 favicon，桌面托盘/磁贴等资源不进 APK
+  publicDir: resolve(__dirname, "public-android"),
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_REPO_URL__: JSON.stringify(pkg.repository.url),

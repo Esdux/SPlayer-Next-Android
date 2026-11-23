@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Component } from "vue";
 import { usePopupZIndex } from "@/composables/useZIndex";
+import { useBackGuard } from "@/composables/useBackGuard";
 
 export interface DropdownMenuItem {
   /** 唯一标识 */
@@ -82,10 +83,27 @@ const menuItemClass = computed(() =>
       : "text-on-surface data-[highlighted]:bg-on-surface/12",
   ].join(" "),
 );
+
+/** 菜单开合状态，用于接住系统返回键 */
+const menuOpen = ref(false);
+
+
+
+/**
+ * 菜单根节点开合回调
+ * @param open - 是否打开
+ */
+const handleRootOpenChange = (open: boolean): void => {
+  menuOpen.value = open;
+  onOpenChange(open);
+};
+
+useBackGuard(() => menuOpen.value, () => handleRootOpenChange(false));
+
 </script>
 
 <template>
-  <DropdownMenuRoot @update:open="onOpenChange">
+  <DropdownMenuRoot :open="menuOpen" @update:open="handleRootOpenChange">
     <DropdownMenuTrigger as="div" class="inline-flex">
       <slot name="trigger" />
     </DropdownMenuTrigger>

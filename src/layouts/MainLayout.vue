@@ -6,6 +6,7 @@ import { useOrpheusProtocol } from "@/composables/useOrpheusProtocol";
 import { useExternalFileHandler } from "@/composables/useExternalFileHandler";
 import { useResponsiveLayout } from "@/composables/useResponsiveLayout";
 import { coverTransitionActive, installCoverTransitions } from "@/services/coverTransition";
+import { consumeBack } from "@/services/backStack";
 import {
   fullPlayerReady,
   playerTransitionActive,
@@ -16,7 +17,43 @@ const route = useRoute();
 const router = useRouter();
 const status = useStatusStore();
 const settings = useSettingsStore();
-const { sidebarCollapsed } = useResponsiveLayout();
+const { sidebarCollapsed, isPhone, drawerOpen } = useResponsiveLayout();
+
+/** 抽屉内是否展开为完整侧栏（折叠样式里点按钮切换） */
+const drawerExpanded = ref(false);
+
+/** 返回键解绑 */
+let offBack: (() => void) | undefined;
+
+/** 通知栏/锁屏的上一首、下一首命令转到网页端的播放队列 */
+let offMediaNext: (() => void) | undefined;
+let offMediaPrevious: (() => void) | undefined;
+
+onMounted(async () => {
+  const host = (window as unknown as { AndroidHost?: unknown }).AndroidHost;
+  if (!host) return;
+  const { onNativeEvent } = await import("@/platform/android/electron-shim");
+  const player = await import("@/core/player");
+  // 返回键统一协调：弹层/播放页各自先行消费，都没消费时回退路由
+  offBack = onNativeEvent("system:back", () => {
+    if (consumeBack()) return;
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    // 已经在根路由，按安卓习惯退到后台，而不是退出进程
+    (window as unknown as { AndroidHost?: { moveTaskToBack?: () => void } }).AndroidHost
+      ?.moveTaskToBack?.();
+  });
+  offMediaNext = onNativeEvent("system:mediaNext", () => void player.nextTrack(true));
+  offMediaPrevious = onNativeEvent("system:mediaPrevious", () => void player.prevTrack());
+});
+
+onBeforeUnmount(() => {
+  offMediaNext?.();
+  offMediaPrevious?.();
+  offBack?.();
+});
 
 // 接入 orpheus 协议唤起与外部音频文件播放
 useOrpheusProtocol();
@@ -130,17 +167,31 @@ const mainMarginClass = computed(() =>
   showPlayerBar.value && appearance.layoutMode !== "floating" ? "mb-20" : "",
 );
 
+/** 切换「折叠侧边栏」设置，抽屉宽度随之变化 */
+const toggleSidebarCollapsed = (): void => {
+  appearance.sidebarCollapsed = !appearance.sidebarCollapsed;
+};
+
 /** 外层播放条样式 */
 const playerBarWrapperClass = computed(() => {
   const base = "fixed bottom-0 z-50 transition-[left] duration-300 pointer-events-none";
   const collapsed = sidebarCollapsed.value;
+  // 播放条统一避让底部安全区：手势条与三键导航都会压到最底部
+  const phoneSafe = "pb-[max(var(--android-safe-bottom,0px),16px)]";
+  const floatingSafe = "pb-[max(var(--android-safe-bottom,0px),24px)]";
+  const plainSafe = "pb-[var(--android-safe-bottom,0px)]";
+  // 竖屏导航改由抽屉承载，播放条不再为侧栏让位
+  if (isPhone.value) {
+    // 竖屏胶囊自己带圆角，外层只负责避让手势条
+    return `${base} left-0 right-0${appearance.layoutMode === "floating" ? " px-3" : ""} ${phoneSafe}`;
+  }
   switch (appearance.layoutMode) {
     case "sidebar-full":
-      return `${base} ${collapsed ? "left-16" : "left-60"} right-0`;
+      return `${base} ${collapsed ? "left-16" : "left-60"} right-0 ${plainSafe}`;
     case "floating":
-      return `${base} ${collapsed ? "left-[76px]" : "left-[252px]"} right-0 px-4 pb-6`;
+      return `${base} ${collapsed ? "left-[76px]" : "left-[252px]"} right-0 px-4 ${floatingSafe}`;
     default:
-      return `${base} left-0 right-0`;
+      return `${base} left-0 right-0 ${plainSafe}`;
   }
 });
 
@@ -148,6 +199,8 @@ const playerBarWrapperClass = computed(() => {
 const playerBarInnerClass = computed(() => {
   // 禁用底部播放栏交互
   const base = isPlayerExpanded.value ? "pointer-events-none" : "pointer-events-auto";
+  // 手机竖屏由 PlayerBar 自己画悬浮胶囊，外层不再铺底色与分隔线
+  if (isPhone.value) return `${base} bg-transparent`;
   switch (appearance.layoutMode) {
     case "floating":
       return `${base} mx-auto max-w-4xl glass-panel rounded-full shadow-xl border border-solid border-primary/10`;
@@ -164,13 +217,33 @@ const playerBarInnerClass = computed(() => {
     :style="playerTransitionActive ? { transition: 'none' } : undefined"
     :class="isPlayerExpanded && fullPlayerReady ? 'scale-95 opacity-0 pointer-events-none' : ''"
   >
-    <!-- 侧边栏 -->
+    <!-- 侧边栏（桌面与横屏） -->
     <aside
+      v-if="!isPhone"
       class="shrink-0 bg-surface-panel overflow-y-auto z-10 transition-[width,margin] duration-300"
-      :class="[sidebarCollapsed ? 'w-16' : 'w-60', sidebarClass]"
+      :class="[sidebarCollapsed ? 'w-16 self-stretch' : 'w-60', sidebarClass]"
     >
       <SideBar />
     </aside>
+
+    <!-- 竖屏导航抽屉：灵动悬浮卡片，底部背景透出 -->
+    <SDrawer
+      v-if="isPhone"
+      v-model:open="drawerOpen"
+      side="left"
+      floating
+      :width="drawerExpanded ? '244px' : '76px'"
+      :closable="false"
+    >
+      <div class="flex h-full flex-col min-h-0 bg-surface-panel">
+        <SideBar
+          :force-expanded="drawerExpanded"
+          toggleable
+          @toggle-expanded="drawerExpanded = !drawerExpanded"
+        />
+      </div>
+
+    </SDrawer>
 
     <!-- 右侧主区域 -->
     <div class="flex-1 flex flex-col min-w-0 min-h-0" :class="mainMarginClass">
@@ -180,12 +253,18 @@ const playerBarInnerClass = computed(() => {
       </header>
 
       <!-- 主内容区 -->
-      <main ref="mainContainerRef" class="flex-1 overflow-y-auto overflow-x-hidden">
+      <main
+        ref="mainContainerRef"
+        class="flex-1 overflow-y-auto overflow-x-hidden"
+        :style="status.isPlayerExpanded ? { visibility: 'hidden' } : undefined"
+      >
         <RouterView v-slot="{ Component }">
           <Transition
             :name="routeTransitionName"
             :css="!coverTransitionActive"
-            :mode="coverTransitionActive ? undefined : 'out-in'"
+            :mode="
+              coverTransitionActive || routeTransitionName === 'route-fade' ? undefined : 'out-in'
+            "
             @after-enter="handleAfterEnter"
           >
             <KeepAlive :max="10" :include="cachedViews">

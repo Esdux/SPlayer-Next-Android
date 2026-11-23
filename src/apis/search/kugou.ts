@@ -32,7 +32,9 @@ export const songs = async (
     page: Math.floor(offset / limit) + 1,
     limit,
   });
+  console.warn("[srch] kugou body keys=" + (body ? Object.keys(body).join(",") : "nil"));
   const items = (body.songs ?? []).map(kgSongToTrack);
+  console.warn("[srch] kugou items=" + items.length);
   return result(items, body.total ?? items.length, offset);
 };
 
@@ -47,6 +49,7 @@ export const albums = async (
     page: Math.floor(offset / limit) + 1,
     limit,
   });
+  console.warn("[srch] albums body=" + (body ? Object.keys(body).join(",") : "nil"));
   const items = (body.albums ?? []).map(kgAlbumToCoverItem);
   return result(items, body.total ?? items.length, offset);
 };
@@ -77,6 +80,7 @@ export const playlists = async (
     page: Math.floor(offset / limit) + 1,
     limit,
   });
+  console.warn("[srch] playlists body=" + (body ? Object.keys(body).join(",") : "nil"));
   const items = (body.playlists ?? []).map(kgPlaylistToCoverItem);
   return result(items, body.total ?? items.length, offset);
 };

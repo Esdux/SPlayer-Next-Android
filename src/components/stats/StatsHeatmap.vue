@@ -208,7 +208,14 @@ const codecLabel = (codec: string): string => {
 </script>
 
 <template>
-  <div class="grid grid-cols-[300px_minmax(0,1fr)] gap-5 xl:grid-cols-[300px_minmax(0,1fr)_400px]">
+  <div
+    class="grid gap-5"
+    :class="
+      isPhoneViewport
+        ? 'grid-cols-1'
+        : 'grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)_400px]'
+    "
+  >
     <!-- 近 90 天热力图 -->
     <SCard radius="xl" class="flex h-52 min-w-0 flex-col gap-3">
       <div class="flex items-baseline justify-between gap-3">

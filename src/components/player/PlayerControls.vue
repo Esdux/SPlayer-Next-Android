@@ -7,8 +7,12 @@ withDefaults(
   defineProps<{
     /** 紧凑模式 */
     compact?: boolean;
+    /** 极简模式：只保留上一首 / 播放 / 下一首 */
+    minimal?: boolean;
+    /** 仅播放键（手机胶囊用） */
+    playOnly?: boolean;
   }>(),
-  { compact: false },
+  { compact: false, minimal: false, playOnly: false },
 );
 
 const status = useStatusStore();
@@ -21,6 +25,7 @@ const hasTrack = computed(() => !!media.track);
 <template>
   <div class="flex items-center" :class="compact ? 'gap-0' : 'gap-2.5'">
     <SButton
+      v-if="!minimal"
       class="will-change-transform"
       type="primary"
       variant="ghost"
@@ -43,6 +48,7 @@ const hasTrack = computed(() => !!media.track);
       </template>
     </SButton>
     <SButton
+      v-if="!playOnly"
       class="will-change-transform"
       type="primary"
       variant="ghost"
@@ -73,6 +79,7 @@ const hasTrack = computed(() => !!media.track);
       </template>
     </SButton>
     <SButton
+      v-if="!playOnly"
       class="will-change-transform"
       type="primary"
       variant="ghost"
@@ -85,6 +92,7 @@ const hasTrack = computed(() => !!media.track);
       <template #icon><IconLucideSkipForward /></template>
     </SButton>
     <SButton
+      v-if="!minimal"
       class="will-change-transform"
       :type="fmMode ? 'default' : 'primary'"
       variant="ghost"

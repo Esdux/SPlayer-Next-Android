@@ -10,6 +10,7 @@ import ClassicLayout from "./layouts/standard/ClassicLayout.vue";
 import FullCoverLayout from "./layouts/standard/FullCoverLayout.vue";
 import FullLyricLayout from "./layouts/standard/FullLyricLayout.vue";
 import AppleLayout from "./layouts/apple/AppleLayout.vue";
+import MobileLayout from "./layouts/mobile/MobileLayout.vue";
 
 /** 布局设置与布局组件的对应关系 */
 const LAYOUTS: Record<PlayerLayout, Component> = {
@@ -18,6 +19,9 @@ const LAYOUTS: Record<PlayerLayout, Component> = {
   fullLyric: FullLyricLayout,
   apple: AppleLayout,
 };
+
+/** 手机宽度强制走竖屏布局，上游四套都是桌面分栏 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
 
 const status = useStatusStore();
 const settings = useSettingsStore();
@@ -152,10 +156,10 @@ provide(fullPlayerContextKey, {
     <Transition
       appear
       :css="!playerTransitionActive"
-      enter-active-class="transition-transform duration-500 ease-[cubic-bezier(0.7,0,0.3,1)]"
-      leave-active-class="transition-transform duration-500 ease-[cubic-bezier(0.7,0,0.3,1)]"
-      enter-from-class="translate-y-full"
-      leave-to-class="translate-y-full"
+      enter-active-class="transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.7,0,0.3,1)]"
+      leave-active-class="transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.7,0,0.3,1)]"
+      enter-from-class="translate-y-full opacity-0"
+      leave-to-class="translate-y-full opacity-0"
       @after-enter="onAfterEnter"
       @before-enter="onBeforeEnter"
       @before-leave="onBeforeLeave"
@@ -175,7 +179,7 @@ provide(fullPlayerContextKey, {
           v-if="isPlayerExpanded && visualizerMounted && settings.player.enableSpectrum"
           :show="isPlaying && immersive"
         />
-        <component :is="LAYOUTS[layout]" />
+        <component :is="isPhoneViewport ? MobileLayout : LAYOUTS[layout]" />
       </div>
     </Transition>
   </Teleport>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 声明给词幕的能力标签：支持逐字与翻译歌词 -->
+    <string-array name="lyricon_module_tags">
+        <item>$syllable</item>
+        <item>$translation</item>
+    </string-array>
+</resources>

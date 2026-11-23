@@ -19,6 +19,7 @@ onBeforeUnmount(() => unsubscribe());
     v-model:open="open"
     width="min(1024px, calc(100vw - 40px))"
     height="75vh"
+    mobile-sheet
     destroy-on-close
   >
     <Suspense>

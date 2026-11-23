@@ -2,6 +2,8 @@ import type { Track } from "@shared/types/player";
 import type { DownloadRequest, DownloadTagOptions, DownloadTask } from "@shared/types/download";
 import { QUALITY_LABELS, type QualityLevel } from "@/utils/quality";
 import { useSettingsStore } from "@/stores/settings";
+import { useLibraryStore } from "@/stores/library";
+import { dialog } from "@/composables/useDialog";
 import { toast } from "@/composables/useToast";
 
 /** 下载选项 */
@@ -65,6 +67,26 @@ export const useDownload = () => {
    * @returns 是否成功入队
    */
   const enqueue = async (track: Track, opts: EnqueueOptions = {}): Promise<boolean> => {
+    // 本地曲库已有同曲时先问一句，避免重复下载占空间（重试复用 taskId 不拦）
+    const library = useLibraryStore();
+    if (!opts.taskId && track.title) {
+      if (!library.initialized) await library.load().catch(() => undefined);
+      const title = track.title.trim().toLowerCase();
+      const artist = (track.artists?.[0]?.name ?? "").trim().toLowerCase();
+      const local = library.tracks.find(
+        (item) =>
+          (item.title ?? "").trim().toLowerCase() === title &&
+          (!artist || (item.artists?.[0]?.name ?? "").trim().toLowerCase() === artist),
+      );
+      if (local) {
+        const confirmed = await dialog.confirm({
+          title: "本地已有这首歌",
+          content: `曲库中已存在《${local.title}》，仍要重新下载一份吗？`,
+          type: "warning",
+        });
+        if (!confirmed) return false;
+      }
+    }
     const req = prepareRequest(track, opts);
     if (!req) return false;
     const res = opts.taskId

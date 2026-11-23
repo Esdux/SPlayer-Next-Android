@@ -16,6 +16,8 @@ export interface HttpOptions {
   contentType?: string;
   /** 是否自动跟随 302，QQ check_sig 需要关掉以取得跳转中的 Set-Cookie */
   followRedirects?: boolean;
+  /** 单次请求超时毫秒，不传用原生默认 */
+  timeoutMs?: number;
 }
 
 /** 响应结构 */
@@ -67,18 +69,25 @@ export const httpRequest = async (options: HttpOptions): Promise<HttpResponse> =
     body,
     contentType = "application/octet-stream",
     followRedirects = true,
+    timeoutMs,
   } = options;
   const payload: Record<string, unknown> = { url, method, headers, followRedirects };
+  if (timeoutMs !== undefined) payload.timeoutMs = timeoutMs;
   if (body !== undefined) {
     const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
     payload.bodyBase64 = bytesToBase64(bytes);
     payload.contentType = contentType;
   }
-  const raw = (await ipcRenderer.invoke("net:fetch", payload)) as {
-    status: number;
-    headers: Record<string, string>;
-    bodyBase64: string;
-  };
+  const reply = (await ipcRenderer.invoke("net:fetch", payload)) as Record<string, unknown>;
+  // 桥回归值可能是 IpcResponse 形状（{success,data}），也可能已是裸对象，两种都接受
+  const raw = (
+    reply && typeof reply === "object" && "success" in reply && reply.data
+      ? (reply.data as Record<string, unknown>)
+      : reply
+  ) as { status?: number; headers?: Record<string, string>; bodyBase64?: string };
+  if (!raw || typeof raw.status !== "number") {
+    throw new Error("net:fetch 返回异常: " + JSON.stringify(reply).slice(0, 200));
+  }
   const bytes = raw.bodyBase64 ? base64ToBytes(raw.bodyBase64) : new Uint8Array(0);
   const lower: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw.headers ?? {})) lower[key.toLowerCase()] = value;
@@ -98,6 +107,10 @@ export const httpRequest = async (options: HttpOptions): Promise<HttpResponse> =
 export const httpJson = async <T = any>(options: HttpOptions): Promise<T> => {
   const res = await httpRequest(options);
   if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
+  // 诊断：酷狗这类接口返回空体时要知道到底是 200 空体还是别的原因
+  if (!res.text || !res.text.trim()) {
+    console.warn("[httpJson] empty body status=" + res.status + " url=" + String(options.url).slice(0, 120));
+  }
   return JSON.parse(res.text) as T;
 };
 

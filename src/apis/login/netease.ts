@@ -107,6 +107,7 @@ export const fetchLoginStatus = async (): Promise<UserProfile | null> => {
   const account = body?.data?.account ?? body?.account;
   const profile = body?.data?.profile ?? body?.profile;
 
+
   // 游客/匿名账号（anonimous 为 true、或无有效 profile/nickname）判定为未登录
   if (
     !account ||

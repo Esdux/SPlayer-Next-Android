@@ -19,7 +19,7 @@ WebView（https://appassets.androidplatform.net/assets/web/）
 
 - **页面外壳**：`WebView` + `WebViewAssetLoader`，前端以 `https://appassets.androidplatform.net/assets/web/index.html` 加载，因此具备安全上下文与同源 `fetch`，无需 `file://` hack。
 - **契约复用**：`electron/preload/index.ts` 整文件复制为 `src/platform/android/preload-api.ts`，仅替换 `os` / `electron` / `@electron-toolkit/preload` 三个 import，168 个 channel 的方法签名一个没改。
-- **播放引擎**：Media3 `ExoPlayer` 单例替代 Rust `audio-engine`，`MediaSessionService` 提供后台播放与系统媒体控制。
+- **播放引擎**：Media3 `ExoPlayer` 单例替代 Rust `audio-engine`，`MediaSessionCompat + NotificationCompat.MediaStyle` 提供后台播放与系统媒体控制。
 - **曲库**：`MediaStore` 扫描替代 better-sqlite3 + 文件扫描；封面经 `/cover/<albumId>` 自定义 path handler 输出。
 - **歌单**：`localStorage` 持久化，行为与桌面端 sqlite 版对齐（含去重、计数、封面继承）。
 
@@ -54,7 +54,6 @@ cd android && gradle assembleRelease
 
 尚未移植（返回结构化失败，不会中断前端）：
 
-- `apis:*` 在线平台代理（网易/QQ/酷狗加密协议在 Node 侧，需要把 crypto 依赖换成纯 JS 实现）
 - `plugin:*` 插件系统（依赖 Node 运行时与动态加载）
 - `streaming:*` Navidrome 等流媒体服务器同步
 - `download:*` 下载队列（当前交由系统下载器）

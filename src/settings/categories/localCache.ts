@@ -41,7 +41,7 @@ const localCacheCategory: SettingCategory = {
             },
             {
               key: "songCacheSizeLimit",
-              type: "slider",
+              type: "number",
               binding: { store: "settings", path: "system.cache.songCache.sizeLimitGb" },
               min: 0,
               max: 50,

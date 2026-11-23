@@ -8,6 +8,7 @@ import { useDownload, buildDownloadQualityItems } from "@/composables/useDownloa
 import { usePlaylistPicker } from "@/composables/usePlaylistPicker";
 import { useTimeFormat } from "@/composables/useTimeFormat";
 import { useProgressLyric } from "@/composables/useProgressLyric";
+import { useMediaQuery } from "@vueuse/core";
 import * as player from "@/core/player";
 import { setPlayerExpanded } from "@/services/playerTransition";
 import { useFullPlayer } from "../../context";
@@ -21,6 +22,9 @@ const { t } = useI18n();
 const { isPlaying, isLoading, position, duration, repeatMode, shuffleMode, heartMode, fmMode } =
   storeToRefs(status);
 const { immersive, onBarEnter, onBarLeave } = useFullPlayer();
+
+/** 手机宽度只保留核心控制，避免十个图标挤成一排 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
 
 const { timeDisplay, toggleTimeFormat } = useTimeFormat();
 const { snapToNearestLyric } = useProgressLyric();
@@ -65,17 +69,20 @@ const showComments = (): void => {
 <template>
   <div
     data-player-layout="bottom-bar"
-    class="absolute bottom-0 inset-x-0 h-20 z-10 flex items-center gap-4 px-4 transition-opacity duration-400"
-    :class="immersive ? 'opacity-0 pointer-events-none' : 'opacity-100'"
+    class="absolute bottom-0 inset-x-0 h-[calc(5rem+var(--android-safe-bottom,0px))] pb-[var(--android-safe-bottom,0px)] z-10 flex items-center transition-opacity duration-400"
+    :class="[immersive ? 'opacity-0 pointer-events-none' : 'opacity-100', isPhoneViewport ? 'gap-2 px-2' : 'gap-4 px-4']"
     @mouseenter="onBarEnter"
     @mouseleave="onBarLeave"
   >
-    <div class="flex-1 min-w-0 flex items-center justify-start gap-2">
+    <div
+      class="flex items-center gap-2"
+      :class="isPhoneViewport ? 'shrink-0' : 'flex-1 min-w-0 justify-start'"
+    >
       <SButton type="cover" variant="ghost" size="large" circle @click="setPlayerExpanded(false)">
         <template #icon><IconLucideChevronDown /></template>
       </SButton>
       <SButton
-        v-if="displayTrack?.source !== 'plugin'"
+        v-if="!isPhoneViewport && displayTrack?.source !== 'plugin'"
         type="cover"
         variant="ghost"
         size="large"
@@ -91,6 +98,7 @@ const showComments = (): void => {
         </template>
       </SButton>
       <SButton
+        v-if="!isPhoneViewport"
         type="cover"
         variant="ghost"
         size="large"
@@ -101,7 +109,7 @@ const showComments = (): void => {
         <template #icon><IconLucideMessageCircle /></template>
       </SButton>
       <SButton
-        v-if="displayTrack?.source === 'local' || displayTrack?.source === 'netease'"
+        v-if="!isPhoneViewport && (displayTrack?.source === 'local' || displayTrack?.source === 'netease')"
         type="cover"
         variant="ghost"
         size="large"
@@ -111,7 +119,7 @@ const showComments = (): void => {
         <template #icon><IconLucideListPlus /></template>
       </SButton>
       <SDropdownMenu
-        v-if="canDownload"
+        v-if="!isPhoneViewport && canDownload"
         :items="downloadQualityItems"
         cover
         side="top"
@@ -125,7 +133,10 @@ const showComments = (): void => {
         </template>
       </SDropdownMenu>
     </div>
-    <div class="shrink-0 flex flex-col items-center gap-1 w-[clamp(360px,35%,480px)]">
+    <div
+      class="flex flex-col items-center gap-1"
+      :class="isPhoneViewport ? 'flex-1 min-w-0' : 'shrink-0 w-[clamp(360px,35%,480px)]'"
+    >
       <div class="flex items-center gap-3">
         <SButton
           type="cover"
@@ -221,7 +232,7 @@ const showComments = (): void => {
         </span>
       </div>
     </div>
-    <div class="flex-1 min-w-0 flex items-center justify-end">
+    <div v-if="!isPhoneViewport" class="flex-1 min-w-0 flex items-center justify-end">
       <Toolbar cover />
     </div>
   </div>

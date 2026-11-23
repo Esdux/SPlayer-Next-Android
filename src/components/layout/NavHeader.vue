@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSettingsDialog } from "@/settings/useSettingsDialog";
+import { useResponsiveLayout } from "@/composables/useResponsiveLayout";
 import { useWindowControls } from "@/composables/useWindowControls";
 import { useThemeStore } from "@/stores/theme";
 import { useUpdateStore } from "@/stores/update";
@@ -18,6 +19,11 @@ const { show: showSettings } = useSettingsDialog();
 const theme = useThemeStore();
 const update = useUpdateStore();
 const { isBorderless } = useWindowControls();
+
+const { toggleDrawer } = useResponsiveLayout();
+
+/** 竖屏手机：隐藏桌面式的前进/后退按钮，导航改由抽屉承载 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
 
 /** 界面缩放弹窗开关 */
 const uiZoomOpen = ref(false);
@@ -57,10 +63,22 @@ const onMenuSelect = (key: string): void => {
 </script>
 
 <template>
-  <div class="flex items-center justify-between flex-1 h-full min-w-0 app-drag-region">
+  <div class="flex items-center flex-1 h-full min-w-0 gap-2 app-drag-region">
     <!-- 左侧 -->
-    <div class="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+    <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+      <!-- 竖屏：打开导航抽屉 -->
       <SButton
+        v-if="isPhoneViewport"
+        class="app-no-drag shrink-0"
+        variant="tertiary"
+        circle
+        :size="36"
+        @click="toggleDrawer"
+      >
+        <template #icon><IconLucidePanelLeft /></template>
+      </SButton>
+      <SButton
+        v-if="!isPhoneViewport"
         class="app-no-drag shrink-0"
         variant="tertiary"
         circle
@@ -71,6 +89,7 @@ const onMenuSelect = (key: string): void => {
         <template #icon><IconLucideChevronLeft /></template>
       </SButton>
       <SButton
+        v-if="!isPhoneViewport"
         class="app-no-drag shrink-0"
         variant="tertiary"
         circle
@@ -94,8 +113,8 @@ const onMenuSelect = (key: string): void => {
         <template #icon><IconLucideCircleArrowUp /></template>
       </SButton>
     </div>
-    <!-- 中间 -->
-    <div class="flex-1 h-full min-w-4" />
+    <!-- 中间：手机竖屏时不再与左侧搜索栏平分宽度 -->
+    <div :class="isPhoneViewport ? 'w-0 shrink-0' : 'flex-1 h-full min-w-4'" />
     <!-- 右侧 -->
     <div class="flex items-center gap-2 sm:gap-3 shrink-0">
       <NavUser />

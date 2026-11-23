@@ -5,6 +5,7 @@ import i18n from "@/i18n";
 import ExternalApiStatusCard from "@/components/settings/custom/ExternalApiStatusCard.vue";
 import LastfmPanel from "@/components/settings/custom/LastfmPanel.vue";
 import IconLucideGlobe from "~icons/lucide/globe";
+import { isAndroidRuntime } from "@/utils/platform";
 
 const servicesCategory: SettingCategory = {
   id: "services",
@@ -52,7 +53,10 @@ const servicesCategory: SettingCategory = {
               action: async () => {
                 const { t } = i18n.global;
                 try {
-                  const ok = await window.api.system.testNetworkProxy();
+                  const res = await window.api.system.testNetworkProxy();
+                  // 桌面返回 { ok, latency }，安卓可能直接返回布尔
+                  const ok =
+                    typeof res === "boolean" ? res : Boolean((res as { ok?: boolean } | null)?.ok);
                   if (ok) toast.success(t("settings.networkProxyTest.success"));
                   else toast.error(t("settings.networkProxyTest.failed"));
                 } catch {
@@ -192,5 +196,13 @@ const servicesCategory: SettingCategory = {
     },
   ],
 };
+
+// 安卓壳没有 Discord 与本地 API 服务端，隐藏这两个整段，避免"能填但永远失败"
+if (isAndroidRuntime()) {
+  servicesCategory.sections = servicesCategory.sections.filter(
+    (section) =>
+      section.id !== "discord" && section.id !== "externalApi" && section.id !== "lastfm",
+  );
+}
 
 export default servicesCategory;

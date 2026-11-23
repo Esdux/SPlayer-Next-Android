@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePopupZIndex } from "@/composables/useZIndex";
+import { useBackGuard } from "@/composables/useBackGuard";
 
 export interface SDrawerProps {
   /** 控制打开状态（v-model:open） */
@@ -18,6 +19,8 @@ export interface SDrawerProps {
   closable?: boolean;
   /** 封面主题模式 */
   cover?: boolean;
+  /** 灵动悬浮样式：四周留边、圆角卡片、高度随内容，底部背景透出 */
+  floating?: boolean;
 }
 
 const props = withDefaults(defineProps<SDrawerProps>(), {
@@ -26,6 +29,7 @@ const props = withDefaults(defineProps<SDrawerProps>(), {
   width: "320px",
   closable: true,
   cover: false,
+  floating: false,
 });
 
 const emit = defineEmits<{
@@ -35,6 +39,9 @@ const emit = defineEmits<{
 const { zIndex, onOpenChange } = usePopupZIndex();
 
 const isOpen = ref(props.open ?? false);
+
+// 浮层接住系统返回键
+useBackGuard(() => isOpen.value, () => setOpen(false));
 
 watch(
   () => props.open,
@@ -52,7 +59,9 @@ const setOpen = (val: boolean): void => {
 
 const contentClass = computed(() => {
   const base = [
-    "fixed top-0 bottom-0 flex flex-col focus:outline-none",
+    props.floating
+      ? "fixed flex flex-col focus:outline-none rounded-2xl overflow-hidden"
+      : "fixed top-0 bottom-0 flex flex-col focus:outline-none",
     props.cover
       ? "bg-transparent text-cover shadow-none"
       : "bg-surface-bright text-on-surface shadow-xl",
@@ -60,12 +69,12 @@ const contentClass = computed(() => {
 
   if (props.side === "left") {
     base.push(
-      "left-0 rounded-r-3",
+      props.floating ? "left-2" : "left-0 rounded-r-3",
       "data-[state=open]:animate-drawer-in-left data-[state=closed]:animate-drawer-out-left",
     );
   } else {
     base.push(
-      "right-0 rounded-l-3",
+      props.floating ? "right-2" : "right-0 rounded-l-3",
       "data-[state=open]:animate-drawer-in-right data-[state=closed]:animate-drawer-out-right",
     );
   }
@@ -94,7 +103,19 @@ const contentClass = computed(() => {
       />
 
       <!-- 抽屉面板 -->
-      <DialogContent :class="contentClass" :style="{ width, zIndex }">
+      <DialogContent
+        :class="contentClass"
+        :style="[
+          { width, zIndex },
+          floating
+            ? {
+                top: 'calc(var(--android-safe-top, 0px) + 8px)',
+                bottom: 'auto',
+                maxHeight: 'calc(100vh - var(--android-safe-top, 0px) - var(--android-safe-bottom, 0px) - 16px)',
+              }
+            : {},
+        ]"
+      >
         <!-- 无障碍标题（始终存在，视觉隐藏） -->
         <DialogTitle class="sr-only">{{ title ?? "抽屉" }}</DialogTitle>
         <DialogDescription class="sr-only">{{ description ?? "" }}</DialogDescription>
@@ -121,8 +142,8 @@ const contentClass = computed(() => {
           </DialogClose>
         </div>
 
-        <!-- 内容 -->
-        <div class="flex-1 overflow-y-auto">
+        <!-- 内容（隐藏滚动条，避免悬浮侧栏出现多余滑条） -->
+        <div class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden">
           <slot />
         </div>
 

@@ -146,6 +146,7 @@ const fetchers = {
  * @param append - 是否追加下一页
  */
 const fetchTab = async (tab: TabKey, append: boolean): Promise<void> => {
+  console.warn("[srch] fetchTab tab=" + tab + " append=" + append + " hasFetcher=" + !!fetchers[tab]);
   if (!keyword.value) return;
   const state = states[tab];
   if (isPluginTab.value && (!pluginSelection.value || tab !== "songs")) {
@@ -247,7 +248,8 @@ const syncFromRoute = (): void => {
     lastAvailable = pluginAvailable.value;
     resetStates();
     if (q) fetchTab(tab, false);
-  } else if (q && !states[tab].loaded) {
+  } else if (q && !states[tab].loading && (!states[tab].loaded || states[tab].items.length === 0)) {
+    // 切到还没内容或上次空结果的分类时补一次请求
     fetchTab(tab, false);
   }
 };
@@ -338,23 +340,15 @@ const playbackContext = computed<PlaybackContext>(() => ({
   <div class="flex flex-col h-full">
     <!-- 顶栏 -->
     <div class="shrink-0 px-5 pb-2">
-      <div class="mt-2 mb-4 flex items-end justify-between gap-4">
-        <h1 class="min-w-0 flex items-baseline pr-3">
-          <span class="min-w-0 truncate text-3xl font-bold text-on-surface">
-            {{ keyword || t("search.title") }}
-          </span>
-          <span
-            v-if="keyword"
-            class="ml-2 shrink-0 whitespace-nowrap font-medium text-lg text-on-surface-variant/60"
-          >
-            {{ t("search.titleSuffix") }}
-          </span>
-        </h1>
-        <!-- 平台切换 -->
-        <div class="shrink-0 flex items-center">
+      <div
+        class="mt-2 mb-4 flex justify-between gap-4"
+        :class="isPhoneViewport ? 'flex-col items-stretch gap-3' : 'items-end'"
+      >
+        <!-- 平台切换：关键字已由顶部搜索栏承载，这里不再重复显示 -->
+        <div class="flex items-center">
           <div
             class="transition-[width] duration-200 ease-out motion-reduce:transition-none"
-            :class="pluginSources.length ? 'w-56' : 'w-40'"
+            :class="isPhoneViewport ? 'w-full' : pluginSources.length ? 'w-56' : 'w-40'"
           >
             <STabs
               :model-value="selectedPlatform"

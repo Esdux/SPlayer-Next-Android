@@ -27,6 +27,11 @@ export const useLibraryStore = defineStore("library", () => {
   const likedOrderedIds = shallowRef<string[]>([]);
   /** 本地红心 id 集合 */
   const likedIdSet = shallowRef<Set<string>>(new Set());
+  /** 本地红心 id 是否已从 IndexedDB 读出 */
+  const likedReady = ref(false);
+
+  /** 进行中的红心读取，避免并发重复读库 */
+  let likedLoading: Promise<void> | null = null;
 
   /** 持久化喜欢列表 */
   const persistLiked = (): void => {
@@ -35,6 +40,46 @@ export const useLibraryStore = defineStore("library", () => {
 
   /** 是否已收藏 */
   const isLiked = (trackId: string): boolean => likedIdSet.value.has(trackId);
+
+/** 本地曲 → 在线 musicId（来自文件内 163key），用于显示在线收藏状态 */
+const localMusicIdMap = ref<Record<string, string>>({});
+
+/** 是否正在解析本地曲与在线收藏的对应关系 */
+const musicIdResolving = ref(false);
+
+/** 正在查询中的本地曲 id，避免重复请求 */
+const musicIdPending = new Set<string>();
+
+/**
+ * 读取已解析的在线 musicId
+ * @param trackId - 本地曲目 id
+ * @returns musicId；未解析或解析失败为 null
+ */
+const onlineMusicIdOf = (trackId: string): string | null => localMusicIdMap.value[trackId] || null;
+
+/**
+ * 懒解析本地曲目的在线 musicId
+ * @param track - 本地曲目
+ * @returns musicId；失败为 null
+ */
+const ensureOnlineMusicId = async (track: Track): Promise<string | null> => {
+  const cached = localMusicIdMap.value[track.id];
+  if (cached !== undefined) return cached || null;
+  // 同一首歌可能被多个列表同时请求，先去重，避免并发的桥调用打满 JavaBridge
+  if (musicIdPending.has(track.id)) return null;
+  musicIdPending.add(track.id);
+  const path = String(track.path ?? "");
+  if (!path) return null;
+  musicIdResolving.value = true;
+  const reply = (await (window as unknown as { api?: { library?: { lookupMusicId?: (path: string) => Promise<{ data?: string | number } | null> } } })
+    .api?.library?.lookupMusicId?.(path)
+    .catch(() => null)) as { data?: string | number } | null;
+  musicIdPending.delete(track.id);
+  musicIdResolving.value = false;
+  const musicId = reply?.data != null ? String(reply.data) : "";
+  localMusicIdMap.value = { ...localMusicIdMap.value, [track.id]: musicId };
+  return musicId || null;
+};
 
   /**
    * 切换收藏
@@ -103,18 +148,37 @@ export const useLibraryStore = defineStore("library", () => {
     trackDb.setItem("tracks", toRaw(items)).catch(() => {});
   };
 
+  /**
+   * 读取本地红心 id
+   * 只读 IndexedDB 里的喜欢缓存，不触发曲库扫描
+   * @returns 读取完成的 Promise
+   */
+  const loadLiked = (): Promise<void> => {
+    if (likedReady.value) return Promise.resolve();
+    if (likedLoading) return likedLoading;
+    const task = (async (): Promise<void> => {
+      try {
+        const cached = await trackDb.getItem<string[]>(LIKED_IDS_KEY).catch(() => null);
+        if (Array.isArray(cached)) {
+          likedOrderedIds.value = cached;
+          likedIdSet.value = new Set(cached);
+        }
+      } finally {
+        likedReady.value = true;
+        likedLoading = null;
+      }
+    })();
+    likedLoading = task;
+    return task;
+  };
+
   /** 加载曲目和目录列表 */
   const load = async (): Promise<void> => {
+    // 红心先就绪，避免和曲目缓存重复读同一条记录
+    await loadLiked();
     // 先从 IndexedDB 读缓存，立即渲染
-    const [cached, likedCached] = await Promise.all([
-      trackDb.getItem<Track[]>("tracks").catch(() => null),
-      trackDb.getItem<string[]>(LIKED_IDS_KEY).catch(() => null),
-    ]);
+    const cached = await trackDb.getItem<Track[]>("tracks").catch(() => null);
     if (cached?.length) tracks.value = cached;
-    if (Array.isArray(likedCached)) {
-      likedOrderedIds.value = likedCached;
-      likedIdSet.value = new Set(likedCached);
-    }
     // 拿最新数据并回写缓存
     const [tracksRes, dirsRes] = await Promise.all([
       window.api.library.getTracks(),
@@ -333,7 +397,13 @@ export const useLibraryStore = defineStore("library", () => {
     artistAvatars,
     likedOrderedIds,
     likedIdSet,
+    likedReady,
     isLiked,
+    localMusicIdMap,
+    musicIdResolving,
+    onlineMusicIdOf,
+    ensureOnlineMusicId,
+    loadLiked,
     toggleLike,
     load,
     startScan,

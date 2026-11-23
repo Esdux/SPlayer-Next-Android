@@ -16,6 +16,9 @@ const props = defineProps<{
 
 const media = useMediaStore();
 const settings = useSettingsStore();
+
+/** 安卓使用更轻的背景模糊，减少每帧合成开销 */
+const androidBlurLite = typeof window !== "undefined" && Boolean((window as any).AndroidHost);
 const status = useStatusStore();
 
 const bgType = computed(() => settings.player.playerBgType as string);
@@ -194,6 +197,8 @@ onBeforeUnmount(() => {
 
 .bg-blur-wrap .bg-img.active {
   opacity: 1;
+  /* 预热为独立合成层：只在可见层保留，空置缓冲层不再常驻合成，避免双份模糊/显存开销 */
+  will-change: filter;
 }
 
 /* 纹理就绪后再显露流体画面 */

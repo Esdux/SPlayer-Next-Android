@@ -26,6 +26,8 @@ export interface SSliderProps {
   hoverTrackHeight?: number;
   /** 完全隐藏拖拽点 */
   hideThumb?: boolean;
+  /** 触摸命中区高度（px，0 表示按拖拽点/轨道自动计算） */
+  hitboxHeight?: number;
   /** 刻度标记：{ 值: 标签 } */
   marks?: Record<number, string>;
   /** 垂直方向 */
@@ -52,6 +54,7 @@ const props = withDefaults(defineProps<SSliderProps>(), {
   thumbSize: 14,
   hoverTrackHeight: undefined,
   hideThumb: false,
+  hitboxHeight: 0,
   marks: undefined,
   vertical: false,
   centerFill: false,
@@ -171,7 +174,10 @@ const currentTrackSize = computed(() => {
 });
 
 /** 触摸区域粗细，需容纳拖拽点与展开后的轨道 */
-const hitboxSize = computed(() => `${Math.max(props.thumbSize, props.hoverTrackHeight ?? 0)}px`);
+const hitboxSize = computed(() => {
+  const base = Math.max(props.thumbSize, props.hoverTrackHeight ?? 0);
+  return `${props.hitboxHeight > 0 ? Math.max(props.hitboxHeight, base) : base}px`;
+});
 
 /** 将值转换为轨道上的百分比位置 */
 const toPercent = (value: number): number => ((value - props.min) / (props.max - props.min)) * 100;
@@ -290,7 +296,7 @@ const onPointerUp = (): void => {
     <div
       v-if="!vertical"
       ref="trackRef"
-      class="s-slider-hitbox relative flex items-center"
+      class="s-slider-hitbox relative flex items-center touch-none"
       :style="{ height: hitboxSize }"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
@@ -479,6 +485,11 @@ const onPointerUp = (): void => {
 </template>
 
 <style scoped>
+/* 触摸拖动：阻止 WebView 把手势判成页面滚动，否则 pointermove 会被 pointercancel 打断 */
+.s-slider-hitbox {
+  touch-action: none;
+}
+
 /* 发光放外层，避免被裁切 */
 .s-slider-fill-glow {
   --s-slider-glow: 0.4;

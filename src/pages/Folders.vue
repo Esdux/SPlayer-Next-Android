@@ -20,6 +20,8 @@ import IconLucideEllipsis from "~icons/lucide/ellipsis";
 
 const { t } = useI18n();
 const router = useRouter();
+/** 竖屏：文件夹树与歌曲列表改为上下排布 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
 const libraryStore = useLibraryStore();
 const playlistStore = usePlaylistStore();
 const { tracks, initialized, folderTree, folderCount } = storeToRefs(libraryStore);
@@ -130,10 +132,15 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-    <div v-if="folderTree.length > 0" class="flex-1 min-h-0 flex">
-      <!-- 文件夹树 -->
+    <div
+      v-if="folderTree.length > 0"
+      class="flex-1 min-h-0 flex"
+      :class="isPhoneViewport ? 'flex-col' : ''"
+    >
+      <!-- 文件夹树：竖屏改为上方定高区域，避免把歌曲列表挤到只剩几十像素 -->
       <div
-        class="w-64 shrink-0 bg-surface-panel border border-solid border-primary/12 rounded-xl ml-3 mb-3 overflow-hidden"
+        class="shrink-0 bg-surface-panel border border-solid border-primary/12 rounded-xl overflow-hidden"
+        :class="isPhoneViewport ? 'w-auto mx-3 mt-2 h-40' : 'w-64 ml-3 mb-3'"
       >
         <STree
           v-model="selectedFolder"

@@ -12,6 +12,8 @@ export interface SMarqueeProps {
   mask?: boolean;
   /** 渐变遮罩宽度（px） */
   maskWidth?: number;
+  /** 滚动次数，0 表示无限循环 */
+  iterations?: number;
 }
 
 const props = withDefaults(defineProps<SMarqueeProps>(), {
@@ -21,12 +23,21 @@ const props = withDefaults(defineProps<SMarqueeProps>(), {
   fit: false,
   mask: true,
   maskWidth: 8,
+  iterations: 0,
 });
 
 const containerRef = ref<HTMLElement>();
 const textRef = ref<HTMLElement>();
 const isOverflowing = ref(false);
 const animDuration = ref("0s");
+
+/** 滚动动画的迭代次数，0 保持无限循环 */
+const marqueeIterations = computed(() =>
+  props.iterations > 0 ? String(props.iterations) : "infinite",
+);
+
+/** 有限次数播放结束后停在第二份文本开头，无限循环不需要填充 */
+const marqueeFill = computed(() => (props.iterations > 0 ? "forwards" : "none"));
 
 let resizeObserver: ResizeObserver | null = null;
 
@@ -65,6 +76,8 @@ onUnmounted(() => {
       '--marquee-delay': `${delay}ms`,
       '--marquee-gap': `${gap}px`,
       '--marquee-mask-width': `${maskWidth}px`,
+      '--marquee-iterations': marqueeIterations,
+      '--marquee-fill': marqueeFill,
     }"
   >
     <div
@@ -88,7 +101,12 @@ onUnmounted(() => {
 <style scoped>
 .s-marquee-scrolling {
   will-change: transform;
-  animation: s-marquee-scroll var(--marquee-duration, 10s) linear var(--marquee-delay, 2s) infinite;
+  animation-name: s-marquee-scroll;
+  animation-duration: var(--marquee-duration, 10s);
+  animation-timing-function: linear;
+  animation-delay: var(--marquee-delay, 2s);
+  animation-iteration-count: var(--marquee-iterations, infinite);
+  animation-fill-mode: var(--marquee-fill, none);
 }
 @keyframes s-marquee-scroll {
   0% {
@@ -112,8 +130,12 @@ onUnmounted(() => {
     black calc(100% - var(--marquee-mask-width, 8px)),
     transparent 100%
   );
-  animation: s-marquee-mask-fade var(--marquee-duration, 10s) linear var(--marquee-delay, 2s)
-    infinite;
+  animation-name: s-marquee-mask-fade;
+  animation-duration: var(--marquee-duration, 10s);
+  animation-timing-function: linear;
+  animation-delay: var(--marquee-delay, 2s);
+  animation-iteration-count: var(--marquee-iterations, infinite);
+  animation-fill-mode: var(--marquee-fill, none);
 }
 
 @keyframes s-marquee-mask-fade {
@@ -133,6 +155,13 @@ onUnmounted(() => {
       black calc(100% - var(--marquee-mask-width, 8px)),
       transparent 100%
     );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .s-marquee-scrolling,
+  .s-marquee-mask {
+    animation: none;
   }
 }
 </style>

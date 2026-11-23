@@ -15,6 +15,7 @@ import {
   SIDEBAR_GROUP_SUBSCRIBED,
   SPRING_PRESETS,
 } from "@/types/settings";
+import { isAndroidRuntime } from "@/utils/platform";
 import type { SystemConfig, LocaleCode } from "@shared/types/settings";
 import { ALL_PLATFORMS } from "@shared/types/platform";
 import { defaultSystemConfig } from "@shared/defaults/settings";
@@ -105,12 +106,14 @@ export const useSettingsStore = defineStore(
 
     /** 外观 */
     const appearance = reactive<AppearanceSettings>({
-      layoutMode: "default",
+      // 安卓竖屏固定灵动悬浮，桌面仍可切换
+  layoutMode: isAndroidRuntime() ? "floating" : "default",
       songListStyle: "comfortable",
       routeTransition: "fade",
       seamlessTransition: false,
       reduceMotion: false,
-      sidebarCollapsed: false,
+      // 安卓默认折叠侧栏
+  sidebarCollapsed: isAndroidRuntime(),
       sidebarPlaylistCover: false,
       sidebarNavGroups: DEFAULT_SIDEBAR_NAV_GROUPS.map((group) => ({
         ...group,
@@ -194,6 +197,8 @@ export const useSettingsStore = defineStore(
       translationFontSizeFollowMain: true,
       translationFontSize: 24,
       fontWeight: 700,
+      landscapeFontSize: 52,
+      landscapeFontWeight: 700,
       lyricBlendMode: "normal",
       fontFamily: "",
       fontFamilyLatin: "",

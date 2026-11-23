@@ -156,14 +156,14 @@ const handleMoreMenu = (key: string): void => {
             :placeholder="t('common.search')"
             clearable
             round
-            class="w-40 focus-within:w-56"
+            class="w-28 focus-within:w-36"
             data-search-input
           >
             <template #prefix>
               <IconLucideSearch class="size-4 text-on-surface-variant/40 shrink-0" />
             </template>
           </SInput>
-          <div class="w-48">
+          <div class="w-28 sm:w-48">
             <STabs v-model="tab" :tabs="tabs" type="segment" round />
           </div>
         </div>

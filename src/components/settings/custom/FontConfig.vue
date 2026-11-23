@@ -3,6 +3,7 @@ import type { StyleValue } from "vue";
 import { useSettingsStore } from "@/stores/settings";
 import { useSystemFonts } from "@/composables/useSystemFonts";
 import IconLucideRotateCcw from "~icons/lucide/rotate-ccw";
+import { isAndroidRuntime } from "@/utils/platform";
 
 defineOptions({ inheritAttrs: false });
 
@@ -75,7 +76,11 @@ const TARGET_DEFS: Array<{ key: FontDraftKey; group: FontGroup }> = [
   { key: "taskbarLyric", group: "externalLyric" },
 ];
 
-const GROUP_ORDER: FontGroup[] = ["general", "appLyric", "externalLyric"];
+/** 是否运行在安卓壳内：桌面歌词/灵动岛/任务栏字体在安卓上没有渲染面 */
+const android = isAndroidRuntime();
+const GROUP_ORDER: FontGroup[] = (
+  ["general", "appLyric", "externalLyric"] as FontGroup[]
+).filter((group) => !(android && group === "externalLyric"));
 
 /** 分组目标 */
 const groupedTargets = computed<Array<{ group: FontGroup; items: FontTarget[] }>>(() => {

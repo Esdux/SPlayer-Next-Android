@@ -194,10 +194,10 @@ html[data-appearance-style="image"] [role="alertdialog"] .bg-field {
 }
 
 .route-fade-enter-active {
-  transition: opacity 0.15s ease;
+  transition: opacity 0.22s ease;
 }
 .route-fade-leave-active {
-  transition: opacity 0.1s ease;
+  transition: opacity 0.16s ease;
 }
 .route-fade-enter-from,
 .route-fade-leave-to {

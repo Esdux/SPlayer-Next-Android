@@ -12,7 +12,8 @@ val localProps = Properties().apply {
 
 android {
     namespace = "top.imsyy.splayer_next.android"
-    compileSdk = 35
+    // Lyricon Provider 与 core-ktx 1.17 要求 36
+    compileSdk = 36
     buildToolsVersion = "35.0.0"
 
     defaultConfig {
@@ -78,7 +79,12 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.media3:media3-session:1.8.0")
+    implementation("androidx.media:media:1.7.0")
     implementation("androidx.media3:media3-datasource-okhttp:1.8.0")
     implementation("androidx.media3:media3-decoder:1.8.0")
     implementation("androidx.media3:media3-common:1.8.0")
+    // 音频标签读写；3.0.1 的 Maven 坐标是 net.jthink，旧坐标 org.jaudiotagger 只有 2.x
+    implementation("net.jthink:jaudiotagger:3.0.1")
+    // Lyricon（词幕）Provider：把歌曲与歌词推给词幕做桌面/悬浮歌词
+    implementation("io.github.proify.lyricon:provider:0.1.70")
 }

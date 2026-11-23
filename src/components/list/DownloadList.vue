@@ -27,6 +27,8 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+/** 竖屏隐藏次信息列，只保留歌名与状态 */
+const isPhoneViewport = useMediaQuery("(max-width: 640px)");
 const media = useMediaStore();
 const status = useStatusStore();
 const downloadStore = useDownloadStore();
@@ -142,10 +144,10 @@ defineExpose({ playAll });
           <div class="w-32 shrink-0 whitespace-nowrap">
             {{ t("download.colStatus") }}
           </div>
-          <div class="w-20 shrink-0 text-center whitespace-nowrap">
+          <div v-if="!isPhoneViewport" class="w-20 shrink-0 text-center whitespace-nowrap">
             {{ t("download.colSize") }}
           </div>
-          <div class="w-16 shrink-0 text-center whitespace-nowrap">
+          <div v-if="!isPhoneViewport" class="w-16 shrink-0 text-center whitespace-nowrap">
             {{ t("songList.duration") }}
           </div>
           <div class="w-20 shrink-0 text-center whitespace-nowrap">
@@ -246,7 +248,7 @@ defineExpose({ playAll });
             </span>
           </div>
           <!-- 大小 -->
-          <div class="w-20 shrink-0 text-center text-sm tabular-nums text-on-surface-variant">
+          <div v-if="!isPhoneViewport" class="w-20 shrink-0 text-center text-sm tabular-nums text-on-surface-variant">
             {{ sizeText(item) || "—" }}
           </div>
           <!-- 时长 -->

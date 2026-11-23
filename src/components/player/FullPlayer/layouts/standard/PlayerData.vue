@@ -21,10 +21,19 @@ const props = withDefaults(
     align?: "center" | "left" | "right";
     /** 简单模式 */
     simple?: boolean;
+    /** 竖屏封面页：只显示歌名/歌手/标签，不显示专辑 */
+    hideAlbum?: boolean;
+    /** 标题走马灯的滚动次数，0 表示无限循环 */
+    marqueeIterations?: number;
+    /** 注释是否跟随标题滚动 */
+    marqueeComment?: boolean;
   }>(),
   {
     align: "center",
     simple: false,
+    hideAlbum: false,
+    marqueeIterations: 0,
+    marqueeComment: false,
   },
 );
 
@@ -159,6 +168,13 @@ const alignItems = computed(() => {
   if (props.align === "right") return "items-end";
   return "items-center";
 });
+
+/** 标签行撑满宽度以承载尾部按钮，内容仍按对齐方式排布 */
+const justifyClass = computed(() => {
+  if (props.align === "left") return "justify-start";
+  if (props.align === "right") return "justify-end";
+  return "justify-center";
+});
 </script>
 
 <template>
@@ -169,18 +185,33 @@ const alignItems = computed(() => {
     :class="alignItems"
   >
     <!-- 标题 -->
-    <SMarquee fit class="max-w-full text-[2em] font-semibold leading-tight">
+    <SMarquee
+      fit
+      class="max-w-full text-[2em] font-semibold leading-tight"
+      :iterations="marqueeIterations"
+    >
       {{ displayTrack.title }}
     </SMarquee>
     <!-- 副标题/注释 -->
+    <SMarquee
+      v-if="!simple && displayTrack.comment && marqueeComment"
+      fit
+      class="max-w-full text-[1.4em] text-cover/40"
+      :iterations="marqueeIterations"
+    >
+      {{ displayTrack.comment }}
+    </SMarquee>
     <div
-      v-if="!simple && displayTrack.comment"
+      v-else-if="!simple && displayTrack.comment"
       class="max-w-full text-[1.4em] text-cover/40 truncate"
     >
       {{ displayTrack.comment }}
     </div>
     <!-- 元信息标签行 -->
-    <div class="flex items-center gap-1.5 text-[1em] my-1 text-cover/60">
+    <div
+      class="flex flex-wrap w-full min-w-0 items-center gap-1.5 text-[1em] my-1 text-cover/60"
+      :class="justifyClass"
+    >
       <span
         class="inline-flex items-center justify-center leading-none px-1.5 py-1.2 rounded-md border border-solid border-cover/30"
       >
@@ -222,6 +253,9 @@ const alignItems = computed(() => {
           </span>
         </template>
       </SPopselect>
+      <div v-if="$slots['meta-trailing']" class="ml-auto flex shrink-0 items-center gap-1">
+        <slot name="meta-trailing" />
+      </div>
     </div>
     <!-- 歌手 -->
     <div class="max-w-full flex items-center gap-1.5 text-[1.2em] text-cover/60">
@@ -244,7 +278,10 @@ const alignItems = computed(() => {
       </span>
     </div>
     <!-- 专辑 -->
-    <div v-if="albumText" class="max-w-full flex items-center gap-1.5 text-[1.2em] text-cover/60">
+    <div
+      v-if="albumText && !hideAlbum"
+      class="max-w-full flex items-center gap-1.5 text-[1.2em] text-cover/60"
+    >
       <IconLucideDisc3 class="shrink-0 translate-y-px text-cover/40" />
       <span
         class="truncate"

@@ -1,0 +1,185 @@
+/**
+ * 手机竖屏排版覆盖层
+ *
+ * 上游 SPlayer-Next 是桌面 Electron 应用，最窄的断点只到平板（1024/1200px），
+ * 手机宽度（<=640px）下会出现中文标题被压成竖排、多列网格文字被裁切的问题。
+ * 这里只在手机宽度生效，按「上下堆叠替代左右并排、列数减半、留白收紧」的原则修正。
+ */
+
+@media (max-width: 640px) {
+  /* 常规页面留白与栅格间距整体收紧 */
+  .px-6 {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .px-8 {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .pt-6 {
+    padding-top: 12px !important;
+  }
+
+  .gap-6 {
+    gap: 12px !important;
+  }
+
+  .gap-5 {
+    gap: 10px !important;
+  }
+
+  /* 标题类文字不再被逐字换行 */
+  h1,
+  h2,
+  h3 {
+    white-space: normal !important;
+    word-break: keep-all !important;
+  }
+
+  h1 {
+    font-size: 22px !important;
+    line-height: 1.25 !important;
+  }
+
+  /* 首页 / 列表页的「标题 + 右侧统计」横排改为上下堆叠 */
+  header.flex.items-start.justify-between {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  header.flex.items-start.justify-between > .shrink-0 {
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+
+  header.flex.items-start.justify-between > .shrink-0 > .text-right {
+    text-align: left !important;
+    flex: 1 1 0 !important;
+  }
+
+  /* 多列网格降到手机可读的列数 */
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .grid-cols-5,
+  .grid-cols-6 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  /* 顶栏收紧：按钮更小、行高更低 */
+  header.h-16 {
+    height: 52px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    gap: 4px !important;
+  }
+
+  /* 播放条：高度压低，底部让出系统手势区 */
+  footer.h-20 {
+    height: 62px !important;
+    padding-bottom: var(--android-safe-bottom, 0px) !important;
+  }
+
+  /* 首页推荐卡片里的插画与封面缩小，避免单卡过高 */
+  .size-32 {
+    width: 84px !important;
+    height: 84px !important;
+  }
+
+  /* 卡片内「数值 + 标签」统一左对齐，避免三列视觉错位 */
+  header.flex.items-start.justify-between > .shrink-0 .items-baseline {
+    justify-content: flex-start !important;
+  }
+
+  /* 首页快捷卡：图标与文字改上下排布，给中文标题留出整行宽度 */
+  .grid-cols-4 > .flex.items-center.gap-3 {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .grid-cols-4 .flex.items-center.gap-3 .min-w-0 {
+    width: 100% !important;
+  }
+
+  /* 手机宽度下不再用省略号截断，允许两行显示 */
+  .grid-cols-4 .truncate,
+  .grid-cols-3 .truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+  }
+
+  /* 歌曲列表：只隐藏表头的「操作」标题（whitespace-nowrap），
+     行内的收藏按钮必须保留，否则列表页无法红心 */
+  div.w-12.shrink-0.whitespace-nowrap {
+    display: none !important;
+  }
+
+  div.w-16.shrink-0.text-center:last-of-type {
+    display: none !important;
+  }
+
+  /* 序号列收窄 */
+  div.w-8.shrink-0 {
+    width: 22px !important;
+  }
+
+  /* 音乐库 / 收藏页工具栏：按钮组与搜索框分两行，避免按钮被压成竖排文字。
+     排除带 rounded-xl 的设置项卡片：它在竖屏是 flex-col，align-items:center 会变成水平居中 */
+  div.flex.items-center.justify-between.gap-4:not(.rounded-xl) {
+    flex-wrap: wrap !important;
+    align-items: center !important;
+  }
+
+  div.flex.items-center.justify-between.gap-4 > div.w-40 {
+    width: 100% !important;
+    margin-top: 4px;
+  }
+
+  div.flex.items-center.justify-between.gap-4 > .flex.items-center.gap-3 {
+    flex: 1 1 auto !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* 标题行里的大标题与统计信息不再抢同一行 */
+  div.flex.items-center.justify-between.mt-2.mb-4 {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+
+  /* 表头里的「专辑」列在手机上不显示（行内也没有内容），避免与歌名列错位 */
+  div.w-8.shrink-0 ~ div.flex-1.min-w-0 + div.flex-1.min-w-0 {
+    display: none !important;
+  }
+
+  /* 时长列收窄，进一步把宽度让给歌名 */
+  div.w-16.shrink-0.text-center:not(:last-of-type) {
+    width: 54px !important;
+  }
+}
+
+/* 安全区（横竖屏通用；变量仅安卓端注入，桌面端为 0px 不受影响）：
+   WebView 铺满整屏让全屏播放页的背景能延伸到状态栏后面，
+   普通页面在这里让出状态栏与导航栏的高度。 */
+#app {
+  box-sizing: border-box;
+  padding-top: var(--android-safe-top, 0px);
+  padding-bottom: var(--android-safe-bottom, 0px);
+}
+
+#app .h-screen {
+  height: calc(100vh - var(--android-safe-top, 0px) - var(--android-safe-bottom, 0px)) !important;
+}

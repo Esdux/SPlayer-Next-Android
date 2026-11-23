@@ -11,6 +11,10 @@ import IconLucideClock from "~icons/lucide/clock";
 import IconLucideRepeat2 from "~icons/lucide/repeat-2";
 import IconLucideRadio from "~icons/lucide/radio";
 import IconLucideAudioWaveform from "~icons/lucide/audio-waveform";
+import { isAndroidRuntime } from "@/utils/platform";
+
+/** 是否运行在安卓壳内：桌面歌词在安卓上没有窗口可开 */
+const android = isAndroidRuntime();
 
 const props = withDefaults(
   defineProps<{
@@ -123,6 +127,7 @@ const onMoreMenuSelect = (key: string): void => {
       </SPopover>
     </div>
     <SButton
+      v-if="!android"
       :type="lyricButtonType"
       :variant="isDesktopLyricOpen ? 'tertiary' : 'ghost'"
       circle

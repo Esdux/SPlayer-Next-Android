@@ -48,7 +48,7 @@ const toggleLyric = (): void => {
       </SButton>
     </template>
   </PlayerTopBar>
-  <div class="absolute top-14 inset-x-0 bottom-20">
+  <div class="absolute top-14 inset-x-0 bottom-[calc(5rem+var(--android-safe-bottom,0px))]">
     <!-- 左侧封面与信息 -->
     <div
       class="absolute inset-y-0 left-0 flex items-center justify-center px-12 transition-transform duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"
@@ -73,7 +73,7 @@ const toggleLyric = (): void => {
     </div>
     <!-- 右侧歌词 -->
     <div
-      class="group absolute inset-y-0 right-0 pr-20 flex flex-col transition-opacity duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"
+      class="group absolute inset-y-0 right-0 pr-4 flex flex-col transition-opacity duration-600 ease-[cubic-bezier(0.4,0,0.2,1)]"
       :class="
         coverCentered || status.fullQueueOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
       "

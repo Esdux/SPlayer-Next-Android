@@ -43,6 +43,7 @@ object EventBus {
      */
     fun emitRaw(channel: String, json: String) {
         val view = webView ?: return
+        // 走 evaluateJavascript：postWebMessage 在本工程里实测未能把事件派发到处理器
         val script = "window.__androidEvent && window.__androidEvent(" +
             JSONObject.quote(channel) + "," + JSONObject.quote(json) + ")"
         view.post { runCatching { view.evaluateJavascript(script, null) } }

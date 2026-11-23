@@ -16,6 +16,20 @@ import { updateSection } from "./sections/update";
 import AboutSettings from "@/components/settings/custom/AboutSettings.vue";
 import IconLucideInfo from "~icons/lucide/info";
 
+import { isAndroidRuntime } from "@/utils/platform";
+
+/** 是否运行在安卓壳内 */
+const android = isAndroidRuntime();
+
+/** 安卓上没有对应实现、或纯桌面形态的设置分类，直接不出现在设置页 */
+const DESKTOP_ONLY_CATEGORY_IDS = new Set([
+  "externalLyric",
+  "hotkeys",
+  "plugins",
+  "mediaSource",
+  "localCache",
+]);
+
 export const settingsSchema: SettingCategory[] = [
   generalCategory,
   appearanceCategory,
@@ -31,4 +45,4 @@ export const settingsSchema: SettingCategory[] = [
   pluginsCategory,
   otherCategory,
   { id: "about", icon: IconLucideInfo, component: AboutSettings, sections: [updateSection] },
-];
+].filter((category) => !(android && DESKTOP_ONLY_CATEGORY_IDS.has(category.id)));

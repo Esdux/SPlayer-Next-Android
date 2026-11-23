@@ -5,6 +5,8 @@ import type { SMenuItem } from "@/components/ui/SMenu.vue";
 const props = defineProps<{
   categories: SettingCategory[];
   activeId: string;
+  /** 折叠为仅图标的窄栏 */
+  collapsed?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -26,6 +28,7 @@ const menuItems = computed<SMenuItem[]>(() =>
   <SMenu
     :items="menuItems"
     :model-value="activeId"
+    :collapsed="collapsed"
     center-active-on-mount
     @select="emit('select', $event)"
   />
