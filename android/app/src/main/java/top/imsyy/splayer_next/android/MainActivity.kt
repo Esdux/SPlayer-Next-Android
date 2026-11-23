@@ -509,6 +509,13 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * 说明：不要在后台上调用 webView.onPause()。
+     * 它会让 WebView 在主线程同步等待渲染线程，后台被判定 ANR 后整进程被 SIGKILL
+     * （实测 exit-info: reason=SIGNALED、anrType=5、timeout=133s），播放随之中断。
+     * 非前台降载改由 setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true) 承担。
+     */
+
+    /**
      * 分拣外部打开请求：冷启动入队等前端拉取，热启动直接推事件
      * @param intent - 外部唤起 Intent
      */

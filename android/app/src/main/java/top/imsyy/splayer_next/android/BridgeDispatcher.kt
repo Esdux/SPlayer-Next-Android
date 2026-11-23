@@ -22,7 +22,27 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class BridgeDispatcher(private val activity: MainActivity) {
 
-    private val pool = Executors.newFixedThreadPool(4)
+    private val pool =
+        Executors.newFixedThreadPool(4) { runnable ->
+            Thread({
+                ThreadTuning.applyWorkerThread()
+                runnable.run()
+            }, "bridge-worker")
+        }
+
+    /**
+     * 网络通道独立池
+     *
+     * net:fetch 是同步 OkHttp 调用，放通用池里一旦遇到长请求（如 AMLL 搜索），
+     * 4 个线程被占满后所有原生调用都会排队超时，表现成整个应用「断网」。
+     */
+    private val netPool =
+        Executors.newCachedThreadPool { runnable ->
+            Thread({
+                ThreadTuning.applyWorkerThread()
+                runnable.run()
+            }, "bridge-net")
+        }
 
     init {
         attach(activity)
@@ -97,7 +117,11 @@ class BridgeDispatcher(private val activity: MainActivity) {
         }
         val args = parse(payload)
         val work = Runnable { reply(callId, envelopeOf(channel, args)) }
-        if (needsMainThread(channel)) activity.runOnUiThread(work) else pool.execute(work)
+        when {
+            needsMainThread(channel) -> activity.runOnUiThread(work)
+            channel.startsWith("net:") -> netPool.execute(work)
+            else -> pool.execute(work)
+        }
     }
 
     /**

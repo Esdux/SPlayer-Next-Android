@@ -34,6 +34,8 @@ object NetClient {
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
+        // 整体调用上限：任何阶段卡住都不会无限占着线程
+        .callTimeout(35, TimeUnit.SECONDS)
         .followRedirects(true)
         .addInterceptor(defaultHeadersInterceptor)
         .hostnameVerifier { host, session ->

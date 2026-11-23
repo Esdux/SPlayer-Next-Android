@@ -9,6 +9,8 @@ import top.imsyy.splayer_next.android.playback.PlaybackEngine
 class SPlayerApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // 向系统显式声明主线程调度意图（渲染/输入优先、top-app 组）
+        ThreadTuning.applyUiThread()
         instance = this
         SPlayerContext.attach(this)
         AppPaths.init(this)

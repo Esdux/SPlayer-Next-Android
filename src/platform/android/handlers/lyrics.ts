@@ -201,6 +201,294 @@ export const registerLyricsHandlers = (): void => {
     }));
     return { ok: true, data: items };
   });
+
+  // 手动匹配的固化：按曲目指纹存 localStorage，重新加载时优先取这里
+  registerHandler("lyrics:getManualMatch", (track: unknown) => {
+    try {
+      const raw = localStorage.getItem(manualMatchKey(track));
+      return raw ? (JSON.parse(raw) as unknown) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  registerHandler("lyrics:setManualMatch", (track: unknown, match: unknown) => {
+    try {
+      localStorage.setItem(manualMatchKey(track), JSON.stringify(match ?? null));
+    } catch {
+      // 存储满或被禁用时静默，避免打断播放
+    }
+    return undefined;
+  });
+
+  registerHandler("lyrics:clearManualMatch", (track: unknown) => {
+    try {
+      localStorage.removeItem(manualMatchKey(track));
+    } catch {
+      // 同上
+    }
+    return undefined;
+  });
+
+  // 手动匹配面板的候选搜索：此前由 stubs 的空实现覆盖，面板永远拿不到歌词
+  registerHandler("lyrics:searchCandidates", async (platform: unknown, keyword: unknown, track: unknown) => {
+    const source = String(platform ?? "");
+    const kw = String(keyword ?? "").trim();
+    const row = (track ?? {}) as LyricTrackRow;
+    if (!kw) return { ok: true, data: [] };
+    try {
+      const rows = await searchLyricCandidates(source, kw, row);
+      // 统一打分后按分数排序：低分（错配）直接剔除，best 取最高分
+      const scored = rows
+        .map((item) => ({ item, ...scoreLyricCandidate(item, row) }))
+        .filter((entry) => entry.score > 0)
+        .sort((left, right) => right.score - left.score);
+      const bestId = scored[0]?.item.id;
+      return {
+        ok: true,
+        data: scored.map((entry) => ({
+          platform: source,
+          id: entry.item.id,
+          name: entry.item.name,
+          artist: entry.item.artist,
+          album: entry.item.album,
+          duration: entry.item.duration,
+          tags: entry.tags,
+          best: entry.item.id === bestId,
+          autoMatched: false,
+        })),
+      };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+};
+
+/**
+ * 手动匹配的存储键：优先用平台 + id，缺失时退回歌名/歌手/时长
+ * @param track - 曲目
+ * @returns localStorage 键
+ */
+const manualMatchKey = (track: unknown): string => {
+  const row = (track ?? {}) as {
+    title?: string;
+    artists?: { name?: string }[];
+  };
+  // 只按歌名 + 歌手做键：同一首歌切歌往返后来源与 id 都会变，用 id 会导致读不到
+  const title = normText(row.title);
+  const artist = normText(row.artists?.[0]?.name);
+  return `lyric:manual:${title}:${artist}`;
+};
+
+/** 网易云搜索结果行 */
+interface NcmSongRow {
+  id: number | string;
+  name: string;
+  ar?: { name: string }[];
+  al?: { name?: string };
+  dt?: number;
+}
+
+/** QQ 音乐搜索结果行 */
+interface QqSongRow {
+  mid?: string;
+  extId?: string;
+  id?: string | number;
+  name?: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  duration?: number;
+}
+
+/** 酷狗搜索结果行 */
+interface KgSongRow {
+  hash?: string;
+  name?: string;
+  artist?: string;
+  album?: string;
+  duration?: number;
+}
+
+/** 候选行 */
+interface LyricCandidateRow {
+  id: string;
+  name: string;
+  artist: string;
+  album?: string;
+  duration?: number;
+  /** 同一首歌的多语言/多版本歌名（AMLL 条目会有多个） */
+  names?: string[];
+  /** 多歌手列表（AMLL 条目会有多个） */
+  artists?: string[];
+}
+
+/** 短串在长串中的占比，用于「包含」判定 */
+const containmentRatio = (left: string, right: string): number => {
+  if (!left || !right) return 0;
+  const short = left.length <= right.length ? left : right;
+  const long = left.length <= right.length ? right : left;
+  if (!long.includes(short)) return 0;
+  return short.length / long.length;
+};
+
+/**
+ * 候选打分：与 QQ 音乐同一套规则
+ *
+ * 硬性条件：歌名全等，或包含且短串占比 ≥ 0.34 且歌手命中；
+ * 打分：歌名全等 10 / 包含 4，歌手全等 5 / 包含 2，时长 ±5s 3
+ */
+const scoreLyricCandidate = (
+  row: LyricCandidateRow,
+  track: LyricTrackRow,
+): { score: number; tags: Array<"name" | "artist" | "duration"> } => {
+  const tags: Array<"name" | "artist" | "duration"> = [];
+  const trackName = normText(track.title);
+  const names = (row.names?.length ? row.names : [row.name]).map(normText).filter(Boolean);
+  let nameExact = false;
+  let nameRatio = 0;
+  for (const name of names) {
+    if (name === trackName) {
+      nameExact = true;
+      break;
+    }
+    nameRatio = Math.max(nameRatio, containmentRatio(name, trackName));
+  }
+  // 歌名必须全等或高占比包含，避免「半首同名」的条目混进来
+  if (!nameExact && nameRatio < 0.34) return { score: 0, tags };
+  tags.push("name");
+
+  const trackArtists = (track.artists ?? []).map((item) => normText(item?.name)).filter(Boolean);
+  const artists = (row.artists?.length ? row.artists : [row.artist]).map(normText).filter(Boolean);
+  const artistExact = artists.some((name) => trackArtists.includes(name));
+  const artistHit =
+    !artistExact &&
+    artists.some((name) => trackArtists.some((item) => containmentRatio(name, item) >= 0.34));
+  // 有歌手信息但一个都不命中时，视为错配
+  if (trackArtists.length > 0 && !artistExact && !artistHit) return { score: 0, tags };
+  if (artistExact) tags.push("artist");
+  else if (artistHit) tags.push("artist");
+
+  const duration = Number(row.duration ?? 0);
+  const trackDuration = Number(track.duration ?? 0);
+  const durationClose = duration > 0 && trackDuration > 0 && Math.abs(duration - trackDuration) <= 5_000;
+  if (durationClose) tags.push("duration");
+
+  let score = nameExact ? 10 : 4;
+  if (artistExact) score += 5;
+  else if (artistHit) score += 2;
+  if (durationClose) score += 3;
+  return { score, tags };
+};
+
+/**
+ * 归一化文本：去空白、标点与符号后小写
+ * @param value - 原文本
+ * @returns 归一化结果
+ */
+const normText = (value: unknown): string =>
+  String(value ?? "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
+
+/**
+ * 计算候选与曲目的吻合标签
+ * @param row - 候选
+ * @param track - 当前曲目
+ * @returns 命中的标签
+ */
+const lyricCandidateTags = (
+  row: LyricCandidateRow,
+  track: LyricTrackRow,
+): Array<"name" | "artist" | "duration"> => {
+  const tags: Array<"name" | "artist" | "duration"> = [];
+  const name = normText(row.name);
+  const trackName = normText(track.title);
+  if (name && trackName && (name === trackName || name.includes(trackName) || trackName.includes(name))) {
+    tags.push("name");
+  }
+  const artist = normText(row.artist);
+  const trackArtists = (track.artists ?? []).map((item) => normText(item?.name)).filter(Boolean);
+  if (artist && trackArtists.some((item) => artist.includes(item) || item.includes(artist))) {
+    tags.push("artist");
+  }
+  const duration = Number(row.duration ?? 0);
+  const trackDuration = Number(track.duration ?? 0);
+  if (duration > 0 && trackDuration > 0 && Math.abs(duration - trackDuration) <= 5_000) {
+    tags.push("duration");
+  }
+  return tags;
+};
+
+/**
+ * 按来源搜索歌词候选
+ * @param source - netease / qqmusic / kugou / ttml
+ * @param keyword - 关键词
+ * @param track - 当前曲目（TTML 用）
+ * @returns 归一化候选
+ */
+const searchLyricCandidates = async (
+  source: string,
+  keyword: string,
+  track: LyricTrackRow,
+): Promise<LyricCandidateRow[]> => {
+  if (source === "netease") {
+    const res = (await neteaseCall("cloudsearch", { keywords: keyword, type: 1, limit: 20 })) as {
+      body?: { result?: { songs?: NcmSongRow[] } };
+      result?: { songs?: NcmSongRow[] };
+    };
+    const songs = res?.body?.result?.songs ?? res?.result?.songs ?? [];
+    return songs.map((song) => ({
+      id: String(song.id),
+      name: song.name,
+      artist: (song.ar ?? []).map((item) => item.name).join(" / "),
+      album: song.al?.name,
+      duration: song.dt,
+    }));
+  }
+  if (source === "qqmusic") {
+    const res = (await qqmusicCall("search", { keywords: keyword, type: 0, limit: 20, page: 1 })) as {
+      songs?: QqSongRow[];
+      data?: { songs?: QqSongRow[] };
+      body?: { songs?: QqSongRow[] };
+    };
+    const songs = res?.songs ?? res?.data?.songs ?? res?.body?.songs ?? [];
+    return songs.map((song) => ({
+      id: String(song.extId ?? song.mid ?? song.id ?? ""),
+      name: song.name ?? song.title ?? "",
+      artist: song.artist ?? "",
+      album: song.album,
+      duration: song.duration,
+    }));
+  }
+  if (source === "kugou") {
+    const res = (await kugouCall("search", { keywords: keyword, type: 0, limit: 25, page: 1 })) as {
+      songs?: KgSongRow[];
+      data?: { songs?: KgSongRow[] };
+      body?: { songs?: KgSongRow[] };
+    };
+    const songs = res?.songs ?? res?.data?.songs ?? res?.body?.songs ?? [];
+    return songs.map((song) => ({
+      id: String(song.hash ?? ""),
+      name: song.name ?? "",
+      artist: song.artist ?? "",
+      album: song.album,
+      duration: song.duration,
+    }));
+  }
+  if (source === "ttml") {
+    // AMLL 按歌名匹配，面板传进来的关键词常带歌手（"歌名 歌手"），直接用会搜不到
+    const musicName = String(track?.title ?? "").trim() || keyword;
+    const data = await amllRequest<{ items?: AmllSong[] }>(
+      `search?${new URLSearchParams({ musicName, pageSize: "50" }).toString()}`,
+    );
+    return (data?.items ?? []).map((item) => ({
+      id: String(item.id),
+      name: item.musicNames?.[0] ?? musicName,
+      names: item.musicNames ?? [],
+      artist: (item.artistNames ?? [])[0] ?? "",
+      artists: item.artistNames ?? [],
+    }));
+  }
+  return [];
 };
 /**
  * 把歌词文本包装成前端约定的匹配结果

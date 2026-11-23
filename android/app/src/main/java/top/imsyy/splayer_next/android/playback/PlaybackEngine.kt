@@ -5,6 +5,8 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -155,6 +157,14 @@ object PlaybackEngine {
         val instance = ExoPlayer.Builder(ctx)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .build()
+        // 音频焦点：声明媒体用途并让 ExoPlayer 自动申请/释放焦点（LOSS 暂停、DUCK 降音量）
+        instance.setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build(),
+            true,
+        )
         instance.setHandleAudioBecomingNoisy(true)
         // 预载实例在 prepareNext 里会被显式静音，这里统一给用户音量，避免活动实例被误置 0
         instance.volume = userVolume

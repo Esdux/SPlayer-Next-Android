@@ -78,11 +78,9 @@ export const registerStubHandlers = (): void => {
   registerHandler("streaming:setFavorite", () => ({ success: false }));
 
   // 歌词仓库与手动匹配：安卓侧从曲目内嵌与同名文件读取
-  registerHandler("lyrics:searchCandidates", () => []);
+  // lyrics:searchCandidates 由 handlers/lyrics.ts 提供真实实现
   registerHandler("lyrics:matchLocalTTML", () => null);
-  registerHandler("lyrics:getManualMatch", () => null);
-  registerHandler("lyrics:setManualMatch", () => ({ success: false }));
-  registerHandler("lyrics:clearManualMatch", () => undefined);
+  // get/set/clearManualMatch 由 handlers/lyrics.ts 提供（localStorage 持久化）
   registerHandler("lyrics:rememberMatch", () => undefined);
   registerHandler("lyrics:forgetMatch", () => undefined);
   registerHandler("lyrics:pickLyricRepoDir", () => null);
