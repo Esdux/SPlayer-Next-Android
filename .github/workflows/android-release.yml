@@ -51,8 +51,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ubuntu-latest 预装 Android SDK 并设置 ANDROID_HOME，无需再装 setup-android
+      - name: Show Android SDK
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME:-未设置}"
+          ls "${ANDROID_HOME:-/usr/local/lib/android/sdk}/platforms" 2>/dev/null | tail -3
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
