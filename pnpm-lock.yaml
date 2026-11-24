@@ -165,6 +165,9 @@ settings:
 overrides:
   node-abi: ^4.33.0
 
+patchedDependencies:
+  lyric-dom@0.3.1: d6571736f1cc6fae076e3176983c547ccdc67d10fd34b69535650d1d6f8f1ea6
+
 importers:
 
   .:
@@ -325,7 +328,7 @@ importers:
         version: 1.10.0
       lyric-dom:
         specifier: ^0.3.1
-        version: 0.3.1
+        version: 0.3.1(patch_hash=d6571736f1cc6fae076e3176983c547ccdc67d10fd34b69535650d1d6f8f1ea6)
       markdown-it-mathjax3:
         specifier: ^4.3.2
         version: 4.3.2
@@ -9283,7 +9286,7 @@ snapshots:
     dependencies:
       yallist: 4.0.0
 
-  lyric-dom@0.3.1: {}
+  lyric-dom@0.3.1(patch_hash=d6571736f1cc6fae076e3176983c547ccdc67d10fd34b69535650d1d6f8f1ea6): {}
 
   lyric-kit@0.7.0: {}
 

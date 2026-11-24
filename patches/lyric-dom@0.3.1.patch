@@ -1,0 +1,73 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index a23b2b8fa651dfc27eeae3d88015680ef3e2fee8..46bcb70ce0fd668fd5fa261f5517acd595644e41 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -2364,7 +2364,8 @@ var LyricRenderer = class {
+ 	* 隐藏/冻结恢复后的瞬移布局可能把这些行直接带回视口，需一次性对齐
+ 	*/
+ 	snapVisualState = () => {
+-		const doPass = this.hidePassedLines && this.isPlaying;
++		// 语义：隐藏整行都在屏幕外的行（不再限定「已播放」）
++		const doPass = this.hidePassedLines;
+ 		const activeIdx = this.activeLineIndex;
+ 		for (let i = 0; i < this.lines.length; i++) {
+ 			const lineEl = this.lineElements[i];
+@@ -2558,6 +2559,8 @@ var LyricRenderer = class {
+ 		for (let i = 0; i < lineCount; i++) {
+ 			const posSpring = this.positionSprings[i];
+ 			const scaleSpring = this.scaleSprings[i];
++			// PATCH(splayer): 离屏且已收敛的行跳过弹簧积分，省掉每帧 2×N 次无意义计算
++			if (!isFullSync && this.lineCulled[i] && posSpring.arrived() && scaleSpring.arrived()) continue;
+ 			posSpring.update(deltaTime);
+ 			scaleSpring.update(deltaTime);
+ 			if (this.lines[i]?.isBG) continue;
+@@ -2629,15 +2632,36 @@ var LyricRenderer = class {
+ 		const releaseOmega = this.alphaReleaseSpeed * 1.5;
+ 		const blurFactor = 1 - Math.exp(-12 * frameDeltaSec);
+ 		const halfInactive = this.inactiveAlpha * .5;
+-		const doPass = this.hidePassedLines && this.isPlaying;
++		// 语义：隐藏整行都在屏幕外的行（不再限定「已播放」）
++		const doPass = this.hidePassedLines;
+ 		const doBlur = this.enableBlur;
+ 		const blurSuppressed = this.isUserScrolling || this.isHovering;
+ 		const activeIdx = this.activeLineIndex;
+ 		for (let i = 0; i < lineCount; i++) {
+ 			const yPos = this.positionSprings[i].getCurrentPosition();
+-			if (!isFullSync && (yPos < -500 || yPos > viewHeight + 500)) continue;
++			if (!isFullSync && (yPos < -500 || yPos > viewHeight + 500)) {
++				// 拖动/滚动歌词时离屏行一并恢复；松手后（且开启隐藏）重新写回隐藏值
++				const offAlpha =
++					this.isUserScrolling || !this.hidePassedLines ? this.inactiveAlpha : 1e-4;
++				const alphaOff = i * 2;
++				if (this.alphaValues[alphaOff] !== offAlpha || this.alphaValues[alphaOff + 1] !== offAlpha) {
++					this.alphaValues[alphaOff] = offAlpha;
++					this.alphaValues[alphaOff + 1] = offAlpha;
++					this.alphaVelocities[alphaOff] = 0;
++					this.alphaVelocities[alphaOff + 1] = 0;
++					const offEl = this.lineElements[i];
++					if (offEl) {
++						offEl.style.setProperty("--ba", offAlpha.toFixed(3));
++						offEl.style.setProperty("--da", offAlpha.toFixed(3));
++					}
++				}
++				continue;
++			}
+ 			const isActive = this.activeLineSet.has(i);
+-			const isPassed = doPass && !this.isUserScrolling && !isActive && (this.lines[i].isBG ? i - 1 < activeIdx : i < activeIdx);
++			// 隐藏屏幕外行：整行完全在上方或下方屏幕外才隐藏；一旦有部分进入屏幕立即恢复
++			const lineHeightForPass = this.lineHeights[i] || 40;
++			const fullyOffscreen = yPos + lineHeightForPass <= 0 || yPos >= viewHeight;
++			const isPassed = doPass && !this.isUserScrolling && !isActive && fullyOffscreen;
+ 			const alphaIdx = i * 2;
+ 			const targetBright = isPassed ? 1e-4 : isActive ? 1 : this.inactiveAlpha;
+ 			const prevBright = this.alphaValues[alphaIdx];
+@@ -2678,7 +2702,8 @@ var LyricRenderer = class {
+ 			}
+ 			if (doBlur || this.blurValues[i] > .01) {
+ 				let targetBlur = 0;
+-				if (doBlur && !blurSuppressed && !isActive) targetBlur = Math.min(4, 1 + Math.abs(i - Math.max(activeIdx, 0)));
++				// 隐藏行不参与模糊计算
++				if (doBlur && !blurSuppressed && !isActive && !isPassed) targetBlur = Math.min(4, 1 + Math.abs(i - Math.max(activeIdx, 0)));
+ 				let blurCurrent = this.blurValues[i];
+ 				if (Math.abs(targetBlur - blurCurrent) < .01) blurCurrent = targetBlur;
+ 				else blurCurrent += (targetBlur - blurCurrent) * blurFactor;
