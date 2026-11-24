@@ -148,7 +148,9 @@ const syncPlayerOptions = (player = playerRef.value): void => {
   player.setAlignPosition(props.alignPosition);
   player.setAlignAnchor(props.alignPosition > 0.4 ? "center" : "top");
   player.setWordFadeWidth(props.wordFadeWidth);
-  player.setHidePassedLines(props.hidePassedLines);
+  // AMLL core 的 hidePassedLines 是「按行分界隐藏」，会把仍在屏幕内的已播放行也一并隐藏；
+  // 新规则只隐藏「已播放且整行完全滚出屏幕」的行，而离屏行本来不可见，所以这里关闭 core 的分界隐藏。
+  player.setHidePassedLines(false);
   player.setEnableBlur(props.enableBlur);
 
   const useSpring = settings.lyric.useAMSpring;
@@ -373,6 +375,10 @@ defineExpose({
 .amll-lyrics-container {
   width: 100%;
   height: 100%;
+  /* 与默认引擎 lyric-dom 的 .lp-inner 对齐：左右各 1em。
+     加在外层容器上，core 的 mainElement 坐标基准不受影响（否则点击/拖拽会错位） */
+  padding-inline: var(--lp-padding-x, 1em);
+  box-sizing: border-box;
   position: relative;
   overflow: hidden;
   /* 歌词区自成布局/绘制边界，内部重排不外溢到整个播放页 */

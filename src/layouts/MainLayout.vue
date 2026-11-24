@@ -22,6 +22,49 @@ const { sidebarCollapsed, isPhone, drawerOpen } = useResponsiveLayout();
 /** 抽屉内是否展开为完整侧栏（折叠样式里点按钮切换） */
 const drawerExpanded = ref(false);
 
+/** 左缘右滑打开抽屉的手势起点 */
+const edgeSwipe = { x: 0, y: 0, active: false };
+
+/**
+ * 记录右滑起点：只有从屏幕左缘 24px 内开始才算
+ * @param event - 触摸事件
+ */
+const onEdgeTouchStart = (event: TouchEvent): void => {
+  if (!isPhone.value || drawerOpen.value) return;
+  // 全屏播放页内不触发（那里的手势留给下滑收起）
+  if (status.isPlayerExpanded) return;
+  const touch = event.touches[0];
+  if (!touch) return;
+  edgeSwipe.x = touch.clientX;
+  edgeSwipe.y = touch.clientY;
+  edgeSwipe.active = true;
+};
+
+/**
+ * 右滑超过 60px 且以水平方向为主时打开抽屉
+ * @param event - 触摸结束事件
+ */
+const onEdgeTouchEnd = (event: TouchEvent): void => {
+  if (!edgeSwipe.active) return;
+  edgeSwipe.active = false;
+  const touch = event.changedTouches[0];
+  if (!touch) return;
+  const dx = touch.clientX - edgeSwipe.x;
+  const dy = Math.abs(touch.clientY - edgeSwipe.y);
+  if (dx > 60 && dx > dy * 1.5) drawerOpen.value = true;
+};
+
+// 手势挂在 document 捕获阶段：页面内部滚动容器会吞掉根元素上的 touch 事件
+onMounted(() => {
+  document.addEventListener("touchstart", onEdgeTouchStart, { passive: true, capture: true });
+  document.addEventListener("touchend", onEdgeTouchEnd, { passive: true, capture: true });
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("touchstart", onEdgeTouchStart, { capture: true } as EventListenerOptions);
+  document.removeEventListener("touchend", onEdgeTouchEnd, { capture: true } as EventListenerOptions);
+});
+
 /** 返回键解绑 */
 let offBack: (() => void) | undefined;
 

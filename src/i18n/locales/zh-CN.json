@@ -1372,7 +1372,7 @@
       "description": "远离当前行的歌词逐渐模糊"
     },
     "hidePassedLines": {
-      "label": "隐藏已播放行",
+      "label": "隐藏屏幕外行",
       "description": "播放过的歌词行自动隐藏"
     },
     "springPreset": {

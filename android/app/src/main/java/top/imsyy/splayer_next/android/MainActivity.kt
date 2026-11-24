@@ -607,6 +607,8 @@ class MainActivity : ComponentActivity() {
         rootContainer?.requestLayout()
         window.decorView.requestLayout()
         window.decorView.post { pushSafeArea() }
+        // 横屏自动全屏并隐藏状态栏，竖屏恢复
+        setFullscreenMode(newConfig.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
     }
 
     override fun onDestroy() {

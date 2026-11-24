@@ -27,11 +27,14 @@ const props = withDefaults(
     marqueeIterations?: number;
     /** 注释是否跟随标题滚动 */
     marqueeComment?: boolean;
+    /** 横屏紧凑信息：只保留标题与标签，隐藏注释/歌手/专辑/来源 */
+    titleOnly?: boolean;
   }>(),
   {
     align: "center",
     simple: false,
     hideAlbum: false,
+    titleOnly: false,
     marqueeIterations: 0,
     marqueeComment: false,
   },
@@ -180,12 +183,20 @@ const justifyClass = computed(() => {
 <template>
   <div
     v-if="displayTrack"
-    class="w-full flex flex-col gap-[0.5em] overflow-hidden px-2"
+    class="w-full flex flex-col overflow-hidden px-2"
     style="font-size: clamp(12px, calc(14 / 1080 * 100vh), 16px)"
-    :class="alignItems"
+    :class="[alignItems, titleOnly ? 'gap-[0.25em]' : 'gap-[0.5em]']"
   >
     <!-- 标题 -->
+    <!-- 横屏紧凑模式：标题允许换行，不再走单行跑马灯 -->
+    <div
+      v-if="titleOnly"
+      class="max-w-full text-[1.5em] font-semibold leading-tight break-words line-clamp-2"
+    >
+      {{ displayTrack.title }}
+    </div>
     <SMarquee
+      v-else
       fit
       class="max-w-full text-[2em] font-semibold leading-tight"
       :iterations="marqueeIterations"
@@ -194,7 +205,7 @@ const justifyClass = computed(() => {
     </SMarquee>
     <!-- 副标题/注释 -->
     <SMarquee
-      v-if="!simple && displayTrack.comment && marqueeComment"
+      v-if="!simple && !titleOnly && displayTrack.comment && marqueeComment"
       fit
       class="max-w-full text-[1.4em] text-cover/40"
       :iterations="marqueeIterations"
@@ -202,15 +213,15 @@ const justifyClass = computed(() => {
       {{ displayTrack.comment }}
     </SMarquee>
     <div
-      v-else-if="!simple && displayTrack.comment"
+      v-else-if="!simple && !titleOnly && displayTrack.comment"
       class="max-w-full text-[1.4em] text-cover/40 truncate"
     >
       {{ displayTrack.comment }}
     </div>
     <!-- 元信息标签行 -->
     <div
-      class="flex flex-wrap w-full min-w-0 items-center gap-1.5 text-[1em] my-1 text-cover/60"
-      :class="justifyClass"
+      class="flex flex-wrap w-full min-w-0 items-center gap-1.5 text-[1em] text-cover/60"
+      :class="[justifyClass, titleOnly ? 'my-0.5' : 'my-1']"
     >
       <span
         class="inline-flex items-center justify-center leading-none px-1.5 py-1.2 rounded-md border border-solid border-cover/30"
@@ -258,7 +269,7 @@ const justifyClass = computed(() => {
       </div>
     </div>
     <!-- 歌手 -->
-    <div class="max-w-full flex items-center gap-1.5 text-[1.2em] text-cover/60">
+    <div v-if="!titleOnly" class="max-w-full flex items-center gap-1.5 text-[1.2em] text-cover/60">
       <IconLucideMic class="shrink-0 translate-y-px text-cover/40" />
       <span class="truncate">
         <template v-if="artists.length">
@@ -279,7 +290,7 @@ const justifyClass = computed(() => {
     </div>
     <!-- 专辑 -->
     <div
-      v-if="albumText && !hideAlbum"
+      v-if="albumText && !hideAlbum && !titleOnly"
       class="max-w-full flex items-center gap-1.5 text-[1.2em] text-cover/60"
     >
       <IconLucideDisc3 class="shrink-0 translate-y-px text-cover/40" />
@@ -293,7 +304,7 @@ const justifyClass = computed(() => {
     </div>
     <!-- 播放来源 -->
     <div
-      v-if="!simple && settings.player.showPlaybackSource && playbackSourceText"
+      v-if="!simple && !titleOnly && settings.player.showPlaybackSource && playbackSourceText"
       class="max-w-full flex items-center gap-1.5 text-[1.2em] text-cover/60"
     >
       <IconLucideLink2 class="shrink-0 translate-y-px text-cover/40" />

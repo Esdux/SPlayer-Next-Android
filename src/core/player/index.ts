@@ -1502,6 +1502,31 @@ export const restoreLastTrack = async (): Promise<void> => {
     status.state = "idle";
     return;
   }
+  // WebView 被系统回收后重建时，原生可能仍在播放同一首：
+  // 此时只同步状态，绝不能重新加载，否则会打断正在进行的播放并从头开始
+  // Android 桥回的是信封 { success, data }，需要取 data
+  const nativeEnvelope = (await window.api.player.getStatus().catch(() => null)) as {
+    data?: { state?: string; id?: string; position?: number; duration?: number };
+  } | null;
+  const nativeStatus = nativeEnvelope?.data ?? null;
+  if (
+    nativeStatus &&
+    nativeStatus.state === "playing" &&
+    nativeStatus.id &&
+    nativeStatus.id === String(lastTrack.id)
+  ) {
+    status.state = "playing";
+    status.position = Number(nativeStatus.position ?? 0);
+    status.duration = Number(nativeStatus.duration ?? 0);
+    playback.setDuration(status.duration);
+    playback.setCurrentTime(status.position, { force: true });
+    playback.setPlaying(true);
+    media.setTrack(lastTrack);
+    media.setPlaybackContext(status.currentPlaybackContext);
+    lyricLoader.beginLoad();
+    void lyricLoader.loadForTrack(media.detail ?? null);
+    return;
+  }
   isRestoringLastTrack = true;
   pendingPlayAfterRestore = false;
   const lastPosition = status.position;

@@ -323,6 +323,7 @@ object PlaybackEngine {
         val duration = if (player.duration > 0) player.duration else 0L
         return JSONObject()
             .put("state", if (player.isPlaying) "playing" else if (lastState == "idle") "idle" else lastState)
+            .put("id", player.currentMediaItem?.mediaId.orEmpty())
             .put("position", player.currentPosition.coerceAtLeast(0))
             .put("duration", duration)
             .put("volume", userVolume.toDouble())
@@ -535,7 +536,12 @@ object PlaybackEngine {
             .setArtworkUri(artworkUri(meta))
             .build()
         player.setMediaItem(
-            MediaItem.Builder().setUri(source).setMediaMetadata(metadata).build(),
+            MediaItem.Builder()
+                .setUri(source)
+                .setMediaMetadata(metadata)
+                // mediaId 带上曲目 id：WebView 重建后前端用它判断「原生是否仍在播同一首」
+                .setMediaId(meta?.optString("id").orEmpty())
+                .build(),
         )
         // 切歌重试会把 autoPlay 传成 false，用户意图仍在播放就继续播，避免「点一下才响」
         if (autoPlay) userWantsPlay = true

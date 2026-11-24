@@ -99,7 +99,7 @@ const openAlbum = (item: CoverItem): void => {
         </div>
       </header>
       <!-- Hero -->
-      <SCard v-if="heroLoading || hero" radius="xl" flush class="min-h-40 -mb-3">
+      <SCard v-if="heroLoading || hero" radius="xl" flush class="min-h-40">
         <div class="flex items-stretch gap-4 p-4">
           <!-- 封面 -->
           <div class="size-32 shrink-0 self-center overflow-hidden rounded-lg">

@@ -1,0 +1,102 @@
+# 手动触发或推送 android-v* 标签时，构建 Android R8 正式版 APK
+name: Android Release (R8)
+
+on:
+  push:
+    tags:
+      - "android-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本名（用于产物命名，例如 1.2.0）"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 24.x
+  PNPM_VERSION: 12.15.0
+  GRADLE_VERSION: 9.7.1
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build R8 release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 前端产物要先进 android/app/src/main/assets，Gradle 才能一起打包
+      - name: Build web assets
+        run: pnpm exec vite build --config vite.android.config.ts
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      # 仓库没有提交 gradlew，签名信息由 secrets 注入；缺失时自然落到未签名 release
+      - name: Write signing config
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          cd android
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+            {
+              echo "ks.path=$(pwd)/release.keystore"
+              echo "ks.alias=$KEY_ALIAS"
+              echo "ks.pass=$KEYSTORE_PASSWORD"
+            } >> local.properties
+            echo "已写入签名配置，产物将使用上传的 keystore 签名"
+          else
+            echo "未配置 ANDROID_KEYSTORE_BASE64，产物为未签名 release APK"
+          fi
+
+      - name: Build R8 release
+        working-directory: android
+        run: gradle assembleRelease --console=plain
+
+      - name: Verify output
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          ls -la "$APK"
+          unzip -l "$APK" >/dev/null && echo "APK 结构正常"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: splayer-next-android-r8-${{ github.event.inputs.version || github.ref_name }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

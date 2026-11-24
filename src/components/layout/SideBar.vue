@@ -34,7 +34,7 @@ const playlistStore = usePlaylistStore();
 const userStore = useUserStore();
 const downloadStore = useDownloadStore();
 const { enterHeartMode } = useHeartMode();
-const { sidebarCollapsed } = useResponsiveLayout();
+const { sidebarCollapsed, drawerOpen } = useResponsiveLayout();
 
 /**
  * forceExpanded：抽屉内的展开状态由外层控制
@@ -77,8 +77,28 @@ const handleCreated = (playlistId: string, scope: ContentScope): void => {
   router.push(`/collection/${scope === "local" ? "local" : "netease"}/playlist/${playlistId}`);
 };
 
-/** 「我的歌单」分组是否展开 */
-const myPlaylistsExpanded = ref(true);
+/** 「我的歌单」展开状态的存储键 */
+const MY_PLAYLISTS_EXPANDED_KEY = "sidebar:my-playlists-expanded";
+
+/** 「我的歌单」分组是否展开：持久化，关掉侧栏再打开不会自己展开 */
+const myPlaylistsExpanded = ref<boolean>(
+  (() => {
+    try {
+      const raw = localStorage.getItem(MY_PLAYLISTS_EXPANDED_KEY);
+      return raw === null ? true : raw === "1";
+    } catch {
+      return true;
+    }
+  })(),
+);
+
+watch(myPlaylistsExpanded, (value) => {
+  try {
+    localStorage.setItem(MY_PLAYLISTS_EXPANDED_KEY, value ? "1" : "0");
+  } catch {
+    // 存储不可用时保持内存态
+  }
+});
 
 /** 我的歌单分组头部 */
 const renderMyHeader = () =>
@@ -108,6 +128,14 @@ const renderMyHeader = () =>
       },
     ),
     h("div", { class: "flex items-center gap-1" }, [
+      // 收起侧栏：与歌单折叠、新建并排，不再单独占一行
+      props.toggleable
+        ? h(
+            SButton,
+            { variant: "tertiary", size: 26, round: true, onClick: () => emit("toggleExpanded") },
+            { icon: () => h(IconLucidePanelLeftClose, { class: "size-3.5" }) },
+          )
+        : null,
       h(
         SButton,
         {
@@ -336,6 +364,8 @@ const activeKey = computed(() => {
 
 const onSelect = (key: string) => {
   router.push(key);
+  // 抽屉内导航后收起，避免遮住目标页面
+  drawerOpen.value = false;
 };
 
 /**
@@ -397,7 +427,7 @@ onMounted(() => {
           expanded
             ? 'flex-1 pb-3 px-3 [&::-webkit-scrollbar]:hidden'
             : props.toggleable
-              ? 'flex-1 min-h-0 pb-12 px-2 [&::-webkit-scrollbar]:hidden'
+              ? 'flex-1 min-h-0 pb-2 px-2 [&::-webkit-scrollbar]:hidden'
               : 'flex-none pb-0 px-2 [&::-webkit-scrollbar]:hidden'
         "
         @contextmenu.capture="onMenuContextMenu"
@@ -408,21 +438,15 @@ onMounted(() => {
           :collapsed="!expanded"
           @select="onSelect"
         />
+        <!-- 折叠样式：展开入口作为普通按钮，排在导航项之后 -->
+        <div v-if="props.toggleable && !expanded" class="mt-1 flex justify-center">
+          <SButton variant="tertiary" round :size="30" :icon-size="18" @click="emit('toggleExpanded')">
+            <template #icon><IconLucidePanelLeftOpen /></template>
+          </SButton>
+        </div>
       </div>
     </SContextMenu>
-    <!-- 折叠样式里的展开入口：固定在抽屉底部，宽度随展开态变化 -->
-    <div
-      v-if="props.toggleable"
-      class="fixed bottom-[calc(var(--android-safe-bottom,0px)+16px)] left-2 z-[60] flex justify-center"
-      :class="expanded ? 'w-[244px]' : 'w-[76px]'"
-    >
-      <SButton variant="tertiary" round :size="30" :icon-size="18" @click="emit('toggleExpanded')">
-        <template #icon>
-          <IconLucidePanelLeftOpen v-if="!expanded" />
-          <IconLucidePanelLeftClose v-else />
-        </template>
-      </SButton>
-    </div>
+
     <!-- 新建歌单 -->
     <PlaylistCreateDialog
       v-model:open="createDialogOpen"

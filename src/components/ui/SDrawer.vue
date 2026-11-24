@@ -110,6 +110,7 @@ const contentClass = computed(() => {
           floating
             ? {
                 top: 'calc(var(--android-safe-top, 0px) + 8px)',
+                // 高度随内容：内容不足时抽屉自动收起，不在底部留一块撑开的空白
                 bottom: 'auto',
                 maxHeight: 'calc(100vh - var(--android-safe-top, 0px) - var(--android-safe-bottom, 0px) - 16px)',
               }

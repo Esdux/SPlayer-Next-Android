@@ -78,7 +78,7 @@ export const cancelPlayerTransition = (): void => {
  * 在底栏与展开播放器之间匹配封面，其余情况沿用原有展开动画
  * @param expanded - 是否展开播放器
  */
-export const setPlayerExpanded = (expanded: boolean): void => {
+export const setPlayerExpanded = async (expanded: boolean): Promise<void> => {
   cancelPlayerTransition();
   skipLayoutTransition();
   const status = useStatusStore();
@@ -101,9 +101,20 @@ export const setPlayerExpanded = (expanded: boolean): void => {
     `[data-player-cover="${expanded ? "bar" : "full"}"]`,
   );
   const image = source?.querySelector<HTMLImageElement>(expanded ? "img[data-cover-image]" : "img");
-  if (!source || !image?.complete || !image.naturalWidth || !source.checkVisibility()) {
+  if (!source || !image || !source.checkVisibility()) {
     status.isPlayerExpanded = expanded;
     return;
+  }
+  // 首次展开时封面可能仍在加载：给一个极短等待窗口，避免直接丢掉过渡动画
+  if (!image.complete || !image.naturalWidth) {
+    const deadline = Date.now() + 150;
+    while ((!image.complete || !image.naturalWidth) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 16));
+    }
+    if (!image.complete || !image.naturalWidth) {
+      status.isPlayerExpanded = expanded;
+      return;
+    }
   }
 
   const root = document.documentElement;

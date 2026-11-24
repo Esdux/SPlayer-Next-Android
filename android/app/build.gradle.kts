@@ -43,8 +43,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // 正式版开启 R8：代码压缩/混淆 + 资源收缩
+            isMinifyEnabled = true
+            isShrinkResources = true
             if (localProps.getProperty("ks.path") != null) {
                 signingConfig = signingConfigs.getByName("release")
             }

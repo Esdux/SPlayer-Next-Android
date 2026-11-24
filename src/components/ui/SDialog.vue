@@ -49,6 +49,8 @@ const DESTROY_DELAY_MS = 180;
 
 /** 竖屏手机判定：仅竖屏弹层模式使用 */
 const isPhoneViewport = useMediaQuery("(max-width: 640px)");
+/** 横屏判定：横屏可用高度很小，弹窗要吃满上下空间 */
+const isLandscape = useMediaQuery("(orientation: landscape)");
 const sheet = computed(() => props.mobileSheet && isPhoneViewport.value);
 
 /** 竖屏可用高度：扣掉状态栏、手势区与四周间距 */
@@ -83,8 +85,14 @@ const containerStyle = computed(() => {
   return {
     width: props.width,
     height: props.height === "auto" ? undefined : props.height,
-    maxHeight: props.height === "auto" ? "85vh" : undefined,
-    top: props.top,
+    // 横屏上下空间紧：top 压到安全区下方，高度吃满剩余空间，避免 top+height 超出视口被裁
+    maxHeight:
+      props.height === "auto"
+        ? isLandscape.value
+          ? "calc(100dvh - var(--android-safe-top, 0px) - var(--android-safe-bottom, 0px) - 16px)"
+          : "85vh"
+        : undefined,
+    top: isLandscape.value ? "calc(var(--android-safe-top, 0px) + 8px)" : props.top,
   };
 });
 

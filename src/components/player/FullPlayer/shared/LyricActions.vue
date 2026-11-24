@@ -51,7 +51,8 @@ const resetLyricOffset = (): void => writeOffset(0);
 
 <template>
   <div
-    class="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 transition-opacity duration-300"
+    class="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-opacity duration-300"
+    style="margin-top: -24px"
     :class="
       immersive
         ? 'opacity-0 pointer-events-none'
@@ -64,7 +65,7 @@ const resetLyricOffset = (): void => writeOffset(0);
       type="cover"
       variant="ghost"
       circle
-      :size="40"
+      :size="32"
       :disabled="!hasLyric"
       @click="copyDialogOpen = true"
     >
@@ -74,7 +75,7 @@ const resetLyricOffset = (): void => writeOffset(0);
       type="cover"
       variant="ghost"
       circle
-      :size="40"
+      :size="32"
       :disabled="!hasTrack"
       :title="t('player.lyricMatch.title')"
       @click="matchDialogOpen = true"
@@ -86,7 +87,7 @@ const resetLyricOffset = (): void => writeOffset(0);
       type="cover"
       variant="ghost"
       circle
-      :size="40"
+      :size="32"
       :disabled="!hasTrack"
       @click="advanceLyric"
     >
@@ -132,7 +133,7 @@ const resetLyricOffset = (): void => writeOffset(0);
       type="cover"
       variant="ghost"
       circle
-      :size="40"
+      :size="32"
       :disabled="!hasTrack"
       @click="delayLyric"
     >

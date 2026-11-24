@@ -1364,8 +1364,8 @@
       "description": "Gradually blur lines further from the active line"
     },
     "hidePassedLines": {
-      "label": "Hide Passed Lines",
-      "description": "Auto-hide lyrics lines that have been played"
+      "label": "Hide Off-screen Lines",
+      "description": "Auto-hide lyrics lines that are entirely outside the screen"
     },
     "springPreset": {
       "label": "Spring Preset",
